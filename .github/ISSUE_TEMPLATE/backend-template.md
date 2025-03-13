@@ -1,16 +1,11 @@
 ---
 name: Backend Template
 about: 백엔드 작업
-title: "[BE] "
+title: "[BE] AuraTalk-back API 개발 또는 수정 작업"
 labels: backend
 assignees: ''
 
 ---
-
-```
-title: '[BACK] AuraTalk-back API 개발 또는 수정 작업'
-ssignees: '본인'
-```
 
 ## 작업 설명
 구현하거나 수정할 API 또는 서비스에 대한 설명

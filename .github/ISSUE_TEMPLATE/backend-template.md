@@ -1,7 +1,7 @@
 ---
 name: Backend Template
 about: 백엔드 작업
-title: "[BACK] "
+title: "[BE] "
 labels: backend
 assignees: ''
 

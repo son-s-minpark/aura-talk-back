@@ -1,3 +1,30 @@
 spring:
   application:
     name: aura-talk-back
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  jpa:
+    hibernate:
+      ddl-auto: ${JPA_DDL_AUTO:update}
+    properties:
+      hibernate:
+        format_sql: true
+        show_sql: ${SHOW_SQL:true}
+        dialect: org.hibernate.dialect.MySQL8Dialect
+  session:
+    store-type: none
+
+  data:
+    redis:
+      port: ${REDIS_PORT:6379}
+      host: ${REDIS_HOST:localhost}
+      password: ${REDIS_PASSWORD:}
+jwt:
+  secret: ${JWT_SECRET}
+  token-validity-in-milliseconds: ${JWT_EXPIRATION:86400000}
+
+server:
+  port: ${SERVER_PORT:8080}

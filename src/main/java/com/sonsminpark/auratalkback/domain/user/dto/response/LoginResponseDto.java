@@ -10,9 +10,6 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @Builder
 public class LoginResponseDto {
-    private Long userId;
-    private String email;
-    private String username;
-    private String nickname;
-    private String accessToken;
+    private String token;
+    private UserResponseDto user;
 }

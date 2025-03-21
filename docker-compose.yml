@@ -1,0 +1,60 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: auratalk-app
+    ports:
+      - "${SERVER_PORT}:${SERVER_PORT}"
+    depends_on:
+      - db
+      - redis
+    env_file:
+      - .env
+    environment:
+      - SPRING_DATASOURCE_URL=${DB_URL}
+      - SPRING_DATASOURCE_USERNAME=${DB_USERNAME}
+      - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD}
+      - SPRING_JPA_HIBERNATE_DDL_AUTO=${JPA_DDL_AUTO}
+      - SPRING_JPA_SHOW_SQL=${SHOW_SQL}
+      - SPRING_DATA_REDIS_HOST=${REDIS_HOST}
+      - SPRING_DATA_REDIS_PORT=${REDIS_PORT}
+      - SPRING_DATA_REDIS_PASSWORD=${REDIS_PASSWORD}
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_EXPIRATION=${JWT_EXPIRATION}
+    restart: always
+    networks:
+      - auratalk-network
+
+  db:
+    image: mysql:8.0
+    container_name: auratalk-db
+    ports:
+      - "${DB_PORT}:3306"
+    environment:
+      - MYSQL_ROOT_PASSWORD=${DB_PASSWORD}
+      - MYSQL_DATABASE=${DB_NAME}
+    command: --default-authentication-plugin=mysql_native_password
+    volumes:
+      - mysql-data:/var/lib/mysql
+    restart: always
+    networks:
+      - auratalk-network
+
+  redis:
+    image: redis:7.0
+    container_name: auratalk-redis
+    ports:
+      - "${REDIS_PORT}:6379"
+    restart: always
+    networks:
+      - auratalk-network
+
+networks:
+  auratalk-network:
+    driver: bridge
+
+volumes:
+  mysql-data:

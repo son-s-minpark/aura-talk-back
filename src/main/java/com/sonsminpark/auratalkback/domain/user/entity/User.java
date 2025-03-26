@@ -72,4 +72,10 @@ public class User {
         this.nickname = nickname;
         this.interests = interests;
     }
+
+    public void updateProfile(String username, String nickname, List<String> interests) {
+        this.username = username;
+        this.nickname = nickname;
+        this.interests = interests;
+    }
 }

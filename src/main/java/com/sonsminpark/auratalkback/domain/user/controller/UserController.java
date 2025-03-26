@@ -1,8 +1,8 @@
 package com.sonsminpark.auratalkback.domain.user.controller;
 
 import com.sonsminpark.auratalkback.domain.user.dto.request.LoginRequestDto;
+import com.sonsminpark.auratalkback.domain.user.dto.request.ProfileSetupRequestDto;
 import com.sonsminpark.auratalkback.domain.user.dto.request.SignUpRequestDto;
-import com.sonsminpark.auratalkback.domain.user.dto.request.UserDto;
 import com.sonsminpark.auratalkback.domain.user.dto.response.LoginResponseDto;
 import com.sonsminpark.auratalkback.domain.user.service.UserService;
 import com.sonsminpark.auratalkback.global.common.ApiResponse;
@@ -43,5 +43,14 @@ public class UserController {
         userService.signUp(signUpRequestDto);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success("회원가입이 성공적으로 완료되었습니다."));
+    }
+
+    @PutMapping("/{userId}/profile")
+    @Operation(summary = "프로필 설정", description = "회원가입 후 사용자 프로필 정보를 설정합니다.")
+    public ResponseEntity<ApiResponse<Void>> setupProfile(
+            @PathVariable Long userId,
+            @Valid @RequestBody ProfileSetupRequestDto profileSetupRequestDto) {
+        userService.setupProfile(userId, profileSetupRequestDto);
+        return ResponseEntity.ok(ApiResponse.success("프로필 설정이 완료되었습니다."));
     }
 }

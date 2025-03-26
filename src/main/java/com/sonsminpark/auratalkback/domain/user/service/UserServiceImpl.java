@@ -1,8 +1,8 @@
 package com.sonsminpark.auratalkback.domain.user.service;
 
 import com.sonsminpark.auratalkback.domain.user.dto.request.LoginRequestDto;
+import com.sonsminpark.auratalkback.domain.user.dto.request.ProfileSetupRequestDto;
 import com.sonsminpark.auratalkback.domain.user.dto.request.SignUpRequestDto;
-import com.sonsminpark.auratalkback.domain.user.dto.request.UserDto;
 import com.sonsminpark.auratalkback.domain.user.dto.response.LoginResponseDto;
 import com.sonsminpark.auratalkback.domain.user.dto.response.UserResponseDto;
 import com.sonsminpark.auratalkback.domain.user.entity.User;
@@ -80,7 +80,6 @@ public class UserServiceImpl implements UserService {
             throw DuplicateUserException.ofEmail(signUpRequestDto.getEmail());
         }
 
-        // 비밀번호 암호화
         String encodedPassword = passwordEncoder.encode(signUpRequestDto.getPassword());
 
         User user = User.builder()
@@ -94,5 +93,30 @@ public class UserServiceImpl implements UserService {
                 .build();
 
         userRepository.save(user);
+    }
+
+    @Override
+    @Transactional
+    public void setupProfile(Long userId, ProfileSetupRequestDto profileSetupRequestDto) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new UserNotFoundException(userId));
+
+        // 사용자명 중복 확인
+        if (userRepository.existsByUsernameAndIsDeletedFalse(profileSetupRequestDto.getUsername()) &&
+                !user.getUsername().equals(profileSetupRequestDto.getUsername())) {
+            throw DuplicateUserException.ofUsername(profileSetupRequestDto.getUsername());
+        }
+
+        // 닉네임 중복 확인
+        if (userRepository.existsByNicknameAndIsDeletedFalse(profileSetupRequestDto.getNickname()) &&
+                !user.getNickname().equals(profileSetupRequestDto.getNickname())) {
+            throw DuplicateUserException.ofNickname(profileSetupRequestDto.getNickname());
+        }
+
+        user.updateProfile(
+                profileSetupRequestDto.getUsername(),
+                profileSetupRequestDto.getNickname(),
+                profileSetupRequestDto.getInterests()
+        );
     }
 }

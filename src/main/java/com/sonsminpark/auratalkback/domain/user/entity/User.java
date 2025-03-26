@@ -51,6 +51,15 @@ public class User {
     @CreationTimestamp
     private LocalDateTime deletedAt;
 
+    @Column(nullable = false)
+    private boolean emailVerified = false;
+
+    @Column(length = 36)
+    private String verificationToken;
+
+    @Column
+    private LocalDateTime verificationTokenExpiryDate;
+
     public void updateStatus(UserStatus status) {
         this.status = status;
     }

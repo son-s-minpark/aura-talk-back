@@ -1,6 +1,7 @@
 package com.sonsminpark.auratalkback.domain.user.service;
 
 import com.sonsminpark.auratalkback.domain.user.dto.request.LoginRequestDto;
+import com.sonsminpark.auratalkback.domain.user.dto.request.SignUpRequestDto;
 import com.sonsminpark.auratalkback.domain.user.dto.request.UserDto;
 import com.sonsminpark.auratalkback.domain.user.dto.response.LoginResponseDto;
 import com.sonsminpark.auratalkback.domain.user.dto.response.UserResponseDto;
@@ -17,6 +18,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.concurrent.TimeUnit;
 
 @Service
@@ -72,35 +74,25 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
-    public Long signUp(UserDto.SignUpRequest signUpRequest) {
-        // 이메일 중복 검사
-        if (userRepository.existsByEmailAndIsDeletedFalse(signUpRequest.getEmail())) {
-            throw DuplicateUserException.ofEmail(signUpRequest.getEmail());
+    public void signUp(SignUpRequestDto signUpRequestDto) {
+        // 이메일 중복 확인
+        if (userRepository.existsByEmailAndIsDeletedFalse(signUpRequestDto.getEmail())) {
+            throw DuplicateUserException.ofEmail(signUpRequestDto.getEmail());
         }
 
-        // 사용자명 중복 검사
-        if (userRepository.existsByUsernameAndIsDeletedFalse(signUpRequest.getUsername())) {
-            throw DuplicateUserException.ofUsername(signUpRequest.getUsername());
-        }
-
-        // 닉네임 중복 검사
-        if (userRepository.existsByNicknameAndIsDeletedFalse(signUpRequest.getNickname())) {
-            throw DuplicateUserException.ofNickname(signUpRequest.getNickname());
-        }
-
-        String encodedPassword = passwordEncoder.encode(signUpRequest.getPassword());
+        // 비밀번호 암호화
+        String encodedPassword = passwordEncoder.encode(signUpRequestDto.getPassword());
 
         User user = User.builder()
-                .email(signUpRequest.getEmail())
+                .email(signUpRequestDto.getEmail())
                 .password(encodedPassword)
-                .username(signUpRequest.getUsername())
-                .nickname(signUpRequest.getNickname())
-                .interests(signUpRequest.getInterests())
+                .username("사용자명")
+                .nickname("닉네임")
+                .interests(new ArrayList<>())
                 .status(UserStatus.OFFLINE)
                 .isDeleted(false)
                 .build();
 
-        User savedUser = userRepository.save(user);
-        return savedUser.getId();
+        userRepository.save(user);
     }
 }

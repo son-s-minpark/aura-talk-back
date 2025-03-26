@@ -1,6 +1,7 @@
 package com.sonsminpark.auratalkback.domain.user.controller;
 
 import com.sonsminpark.auratalkback.domain.user.dto.request.LoginRequestDto;
+import com.sonsminpark.auratalkback.domain.user.dto.request.SignUpRequestDto;
 import com.sonsminpark.auratalkback.domain.user.dto.request.UserDto;
 import com.sonsminpark.auratalkback.domain.user.dto.response.LoginResponseDto;
 import com.sonsminpark.auratalkback.domain.user.service.UserService;
@@ -37,10 +38,10 @@ public class UserController {
     }
 
     @PostMapping
-    @Operation(summary = "회원가입", description = "이메일, 비밀번호, 사용자명, 닉네임, 관심사를 통해 회원가입합니다.")
-    public ResponseEntity<ApiResponse<Long>> signUp(@Valid @RequestBody UserDto.SignUpRequest signUpRequest) {
-        Long userId = userService.signUp(signUpRequest);
+    @Operation(summary = "회원가입", description = "이메일과 비밀번호로 회원가입합니다.")
+    public ResponseEntity<ApiResponse<Void>> signUp(@Valid @RequestBody SignUpRequestDto signUpRequestDto) {
+        userService.signUp(signUpRequestDto);
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.success("회원가입에 성공했습니다.", userId));
+                .body(ApiResponse.success("회원가입이 성공적으로 완료되었습니다."));
     }
 }

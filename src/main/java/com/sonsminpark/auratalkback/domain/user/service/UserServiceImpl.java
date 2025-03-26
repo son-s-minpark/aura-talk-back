@@ -1,10 +1,12 @@
 package com.sonsminpark.auratalkback.domain.user.service;
 
 import com.sonsminpark.auratalkback.domain.user.dto.request.LoginRequestDto;
+import com.sonsminpark.auratalkback.domain.user.dto.request.UserDto;
 import com.sonsminpark.auratalkback.domain.user.dto.response.LoginResponseDto;
 import com.sonsminpark.auratalkback.domain.user.dto.response.UserResponseDto;
 import com.sonsminpark.auratalkback.domain.user.entity.User;
 import com.sonsminpark.auratalkback.domain.user.entity.UserStatus;
+import com.sonsminpark.auratalkback.domain.user.exception.DuplicateUserException;
 import com.sonsminpark.auratalkback.domain.user.exception.InvalidUserCredentialsException;
 import com.sonsminpark.auratalkback.domain.user.exception.UserNotFoundException;
 import com.sonsminpark.auratalkback.domain.user.repository.UserRepository;
@@ -66,5 +68,39 @@ public class UserServiceImpl implements UserService {
         // 토큰 블랙리스트에 추가
         long validityInMilliseconds = jwtTokenProvider.getTokenValidityInMilliseconds();
         redisTemplate.opsForValue().set("BLACKLIST:" + token, "logout", validityInMilliseconds, TimeUnit.MILLISECONDS);
+    }
+
+    @Override
+    @Transactional
+    public Long signUp(UserDto.SignUpRequest signUpRequest) {
+        // 이메일 중복 검사
+        if (userRepository.existsByEmailAndIsDeletedFalse(signUpRequest.getEmail())) {
+            throw DuplicateUserException.ofEmail(signUpRequest.getEmail());
+        }
+
+        // 사용자명 중복 검사
+        if (userRepository.existsByUsernameAndIsDeletedFalse(signUpRequest.getUsername())) {
+            throw DuplicateUserException.ofUsername(signUpRequest.getUsername());
+        }
+
+        // 닉네임 중복 검사
+        if (userRepository.existsByNicknameAndIsDeletedFalse(signUpRequest.getNickname())) {
+            throw DuplicateUserException.ofNickname(signUpRequest.getNickname());
+        }
+
+        String encodedPassword = passwordEncoder.encode(signUpRequest.getPassword());
+
+        User user = User.builder()
+                .email(signUpRequest.getEmail())
+                .password(encodedPassword)
+                .username(signUpRequest.getUsername())
+                .nickname(signUpRequest.getNickname())
+                .interests(signUpRequest.getInterests())
+                .status(UserStatus.OFFLINE)
+                .isDeleted(false)
+                .build();
+
+        User savedUser = userRepository.save(user);
+        return savedUser.getId();
     }
 }

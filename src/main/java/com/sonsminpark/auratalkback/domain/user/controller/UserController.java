@@ -1,9 +1,6 @@
 package com.sonsminpark.auratalkback.domain.user.controller;
 
-import com.sonsminpark.auratalkback.domain.user.dto.request.EmailVerificationRequestDto;
-import com.sonsminpark.auratalkback.domain.user.dto.request.LoginRequestDto;
-import com.sonsminpark.auratalkback.domain.user.dto.request.ProfileSetupRequestDto;
-import com.sonsminpark.auratalkback.domain.user.dto.request.SignUpRequestDto;
+import com.sonsminpark.auratalkback.domain.user.dto.request.*;
 import com.sonsminpark.auratalkback.domain.user.dto.response.LoginResponseDto;
 import com.sonsminpark.auratalkback.domain.user.dto.response.SignUpResponseDto;
 import com.sonsminpark.auratalkback.domain.user.service.UserService;
@@ -74,14 +71,8 @@ public class UserController {
 
     @PostMapping("/resend-verification")
     @Operation(summary = "인증 이메일 재전송", description = "이메일 인증 메일을 재전송합니다.")
-    public ResponseEntity<ApiResponse<Void>> resendVerificationEmail(@RequestBody Map<String, String> request) {
-        String email = request.get("email");
-        if (email == null || email.isEmpty()) {
-            return ResponseEntity.badRequest()
-                    .body(ApiResponse.error(ErrorCode.INVALID_INPUT_VALUE, "이메일이 필요합니다."));
-        }
-
-        userService.resendVerificationEmail(email);
+    public ResponseEntity<ApiResponse<Void>> resendVerificationEmail(@Valid @RequestBody EmailResendRequestDto requestDto) {
+        userService.resendVerificationEmail(requestDto.getEmail());
         return ResponseEntity.ok(ApiResponse.success("인증 이메일이 재전송되었습니다."));
     }
 }

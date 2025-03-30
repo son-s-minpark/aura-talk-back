@@ -4,6 +4,7 @@ import com.sonsminpark.auratalkback.domain.user.dto.request.LoginRequestDto;
 import com.sonsminpark.auratalkback.domain.user.dto.request.ProfileSetupRequestDto;
 import com.sonsminpark.auratalkback.domain.user.dto.request.SignUpRequestDto;
 import com.sonsminpark.auratalkback.domain.user.dto.response.LoginResponseDto;
+import com.sonsminpark.auratalkback.domain.user.dto.response.SignUpResponseDto;
 import com.sonsminpark.auratalkback.domain.user.dto.response.UserResponseDto;
 import com.sonsminpark.auratalkback.domain.user.entity.User;
 import com.sonsminpark.auratalkback.domain.user.entity.UserStatus;
@@ -74,7 +75,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
-    public void signUp(SignUpRequestDto signUpRequestDto) {
+    public SignUpResponseDto signUp(SignUpRequestDto signUpRequestDto) {
         // 이메일 중복 확인
         if (userRepository.existsByEmailAndIsDeletedFalse(signUpRequestDto.getEmail())) {
             throw DuplicateUserException.ofEmail(signUpRequestDto.getEmail());
@@ -85,14 +86,21 @@ public class UserServiceImpl implements UserService {
         User user = User.builder()
                 .email(signUpRequestDto.getEmail())
                 .password(encodedPassword)
-                .username("사용자명")
-                .nickname("닉네임")
+                .username("임시 사용자명")
+                .nickname("임시 닉네임")
                 .interests(new ArrayList<>())
-                .status(UserStatus.OFFLINE)
+                .status(UserStatus.ONLINE)
                 .isDeleted(false)
                 .build();
 
-        userRepository.save(user);
+        User savedUser = userRepository.save(user);
+
+        String token = jwtTokenProvider.createToken(savedUser.getEmail());
+
+        return SignUpResponseDto.builder()
+                .userId(savedUser.getId())
+                .token(token)
+                .build();
     }
 
     @Override

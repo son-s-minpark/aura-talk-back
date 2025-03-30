@@ -4,6 +4,7 @@ import com.sonsminpark.auratalkback.domain.user.dto.request.LoginRequestDto;
 import com.sonsminpark.auratalkback.domain.user.dto.request.ProfileSetupRequestDto;
 import com.sonsminpark.auratalkback.domain.user.dto.request.SignUpRequestDto;
 import com.sonsminpark.auratalkback.domain.user.dto.response.LoginResponseDto;
+import com.sonsminpark.auratalkback.domain.user.dto.response.SignUpResponseDto;
 import com.sonsminpark.auratalkback.domain.user.service.UserService;
 import com.sonsminpark.auratalkback.global.common.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -38,11 +39,11 @@ public class UserController {
     }
 
     @PostMapping
-    @Operation(summary = "회원가입", description = "이메일과 비밀번호로 회원가입합니다.")
-    public ResponseEntity<ApiResponse<Void>> signUp(@Valid @RequestBody SignUpRequestDto signUpRequestDto) {
-        userService.signUp(signUpRequestDto);
+    @Operation(summary = "회원가입", description = "이메일과 비밀번호로 회원가입하고 토큰을 발급받습니다.")
+    public ResponseEntity<ApiResponse<SignUpResponseDto>> signUp(@Valid @RequestBody SignUpRequestDto signUpRequestDto) {
+        SignUpResponseDto signUpResponseDto = userService.signUp(signUpRequestDto);
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.success("회원가입이 성공적으로 완료되었습니다."));
+                .body(ApiResponse.success("회원가입이 성공적으로 완료되었습니다.", signUpResponseDto));
     }
 
     @PutMapping("/{userId}/profile")

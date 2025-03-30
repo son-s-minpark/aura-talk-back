@@ -1,13 +1,15 @@
 package com.sonsminpark.auratalkback.domain.user.service;
 
+import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 
-import javax.swing.text.html.HTML;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
@@ -19,6 +21,10 @@ public class EmailServiceImpl implements EmailService {
     private final RedisTemplate<String, String> redisTemplate;
     private static final long VERIFICATION_TOKEN_VALIDITY = 24 * 60 * 60 * 1000; // 24시간
     private static final String EMAIL_VERIFICATION_PREFIX = "EMAIL_VERIFICATION:";
+    private final JavaMailSender mailSender;
+
+    @Value("${spring.mail.username}")
+    private String fromEmail;
 
     @Override
     public void sendVerificationEmail(String email, String token) {

@@ -1,9 +1,6 @@
 package com.sonsminpark.auratalkback.domain.user.service;
 
-import com.sonsminpark.auratalkback.domain.user.dto.request.EmailVerificationRequestDto;
-import com.sonsminpark.auratalkback.domain.user.dto.request.LoginRequestDto;
-import com.sonsminpark.auratalkback.domain.user.dto.request.ProfileSetupRequestDto;
-import com.sonsminpark.auratalkback.domain.user.dto.request.SignUpRequestDto;
+import com.sonsminpark.auratalkback.domain.user.dto.request.*;
 import com.sonsminpark.auratalkback.domain.user.dto.response.LoginResponseDto;
 import com.sonsminpark.auratalkback.domain.user.dto.response.SignUpResponseDto;
 
@@ -16,6 +13,9 @@ public interface UserService {
 
     // 회원가입
     SignUpResponseDto signUp(SignUpRequestDto signUpRequestDto);
+
+    // 회원탈퇴
+    void deleteUser(Long userId, UserDeleteRequestDto userDeleteRequestDto);
 
     // 프로필 설정
     void setupProfile(Long userId, ProfileSetupRequestDto profileSetupRequestDto);

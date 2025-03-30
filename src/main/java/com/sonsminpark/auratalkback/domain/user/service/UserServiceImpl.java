@@ -1,9 +1,6 @@
 package com.sonsminpark.auratalkback.domain.user.service;
 
-import com.sonsminpark.auratalkback.domain.user.dto.request.EmailVerificationRequestDto;
-import com.sonsminpark.auratalkback.domain.user.dto.request.LoginRequestDto;
-import com.sonsminpark.auratalkback.domain.user.dto.request.ProfileSetupRequestDto;
-import com.sonsminpark.auratalkback.domain.user.dto.request.SignUpRequestDto;
+import com.sonsminpark.auratalkback.domain.user.dto.request.*;
 import com.sonsminpark.auratalkback.domain.user.dto.response.LoginResponseDto;
 import com.sonsminpark.auratalkback.domain.user.dto.response.SignUpResponseDto;
 import com.sonsminpark.auratalkback.domain.user.dto.response.UserResponseDto;
@@ -107,6 +104,39 @@ public class UserServiceImpl implements UserService {
                 .userId(savedUser.getId())
                 .token(token)
                 .build();
+    }
+
+    @Override
+    @Transactional
+    public void deleteUser(Long userId, UserDeleteRequestDto userDeleteRequestDto) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new UserNotFoundException(userId));
+
+        // 이미 탈퇴한 회원인지 확인
+        if (user.isDeleted()) {
+            throw new InvalidUserInputException("이미 탈퇴한 회원입니다.");
+        }
+
+        if (!passwordEncoder.matches(userDeleteRequestDto.getPassword(), user.getPassword())) {
+            throw new InvalidUserCredentialsException("비밀번호가 일치하지 않습니다.");
+        }
+
+        user.delete();
+
+        // 인증 토큰 관련 처리
+        String email = user.getEmail();
+        String token = jwtTokenProvider.createToken(email);
+        long validityInMilliseconds = jwtTokenProvider.getTokenValidityInMilliseconds();
+        redisTemplate.opsForValue().set("BLACKLIST:" + token, "logout", validityInMilliseconds, TimeUnit.MILLISECONDS);
+
+        // 사용자 삭제 예약 (30일 후)
+        scheduleUserDeletion(userId);
+    }
+
+    // 사용자 정보를 30일 후 완전 삭제합니다.
+    private void scheduleUserDeletion(Long userId) {
+        String key = "USER_DELETION:" + userId;
+        redisTemplate.opsForValue().set(key, userId.toString(), 30, TimeUnit.DAYS); // 30일 후 만료
     }
 
     @Override

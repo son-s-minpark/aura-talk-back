@@ -14,8 +14,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Map;
-
 @RestController
 @RequestMapping("/api/users")
 @RequiredArgsConstructor
@@ -45,6 +43,15 @@ public class UserController {
         SignUpResponseDto signUpResponseDto = userService.signUp(signUpRequestDto);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success("회원가입이 성공적으로 완료되었습니다.", signUpResponseDto));
+    }
+
+    @DeleteMapping("/{userId}")
+    @Operation(summary = "회원탈퇴", description = "회원 탈퇴 처리를 합니다. 30일간 정보를 보관 후 삭제됩니다.")
+    public ResponseEntity<ApiResponse<Void>> deleteUser(
+            @PathVariable Long userId,
+            @Valid @RequestBody UserDeleteRequestDto userDeleteRequestDto) {
+        userService.deleteUser(userId, userDeleteRequestDto);
+        return ResponseEntity.ok(ApiResponse.success("회원탈퇴가 성공적으로 처리되었습니다. 30일 이내 재가입 시 계정을 복구할 수 있습니다."));
     }
 
     @PutMapping("/{userId}/profile")

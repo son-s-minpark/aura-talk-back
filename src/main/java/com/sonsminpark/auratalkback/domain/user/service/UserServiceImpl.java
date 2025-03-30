@@ -98,6 +98,9 @@ public class UserServiceImpl implements UserService {
 
         User savedUser = userRepository.save(user);
 
+        String verificationToken = emailService.generateVerificationToken(savedUser.getEmail());
+        emailService.sendVerificationEmail(savedUser.getEmail(), verificationToken);
+
         String token = jwtTokenProvider.createToken(savedUser.getEmail());
 
         return SignUpResponseDto.builder()

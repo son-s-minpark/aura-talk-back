@@ -1,5 +1,6 @@
 package com.sonsminpark.auratalkback.domain.user.service;
 
+import com.sonsminpark.auratalkback.domain.user.dto.request.EmailVerificationRequestDto;
 import com.sonsminpark.auratalkback.domain.user.dto.request.LoginRequestDto;
 import com.sonsminpark.auratalkback.domain.user.dto.request.ProfileSetupRequestDto;
 import com.sonsminpark.auratalkback.domain.user.dto.request.SignUpRequestDto;
@@ -10,6 +11,7 @@ import com.sonsminpark.auratalkback.domain.user.entity.User;
 import com.sonsminpark.auratalkback.domain.user.entity.UserStatus;
 import com.sonsminpark.auratalkback.domain.user.exception.DuplicateUserException;
 import com.sonsminpark.auratalkback.domain.user.exception.InvalidUserCredentialsException;
+import com.sonsminpark.auratalkback.domain.user.exception.InvalidUserInputException;
 import com.sonsminpark.auratalkback.domain.user.exception.UserNotFoundException;
 import com.sonsminpark.auratalkback.domain.user.repository.UserRepository;
 import com.sonsminpark.auratalkback.global.jwt.JwtTokenProvider;
@@ -30,6 +32,7 @@ public class UserServiceImpl implements UserService {
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
     private final RedisTemplate<String, String> redisTemplate;
+    private final EmailService emailService;
 
     @Override
     @Transactional
@@ -126,5 +129,38 @@ public class UserServiceImpl implements UserService {
                 profileSetupRequestDto.getNickname(),
                 profileSetupRequestDto.getInterests()
         );
+    }
+
+    @Override
+    @Transactional
+    public boolean verifyEmail(EmailVerificationRequestDto emailVerificationRequestDto) {
+        if (!emailService.validateVerificationToken(
+                emailVerificationRequestDto.getEmail(),
+                emailVerificationRequestDto.getToken())) {
+            return false;
+        }
+
+        User user = userRepository.findByEmailAndIsDeletedFalse(emailVerificationRequestDto.getEmail())
+                .orElseThrow(() -> new UserNotFoundException(emailVerificationRequestDto.getEmail(), "존재하지 않는 사용자입니다."));
+
+        user.verifyEmail();
+
+        return true;
+    }
+
+    @Override
+    @Transactional
+    public void resendVerificationEmail(String email) {
+        User user = userRepository.findByEmailAndIsDeletedFalse(email)
+                .orElseThrow(() -> new UserNotFoundException(email, "존재하지 않는 사용자입니다."));
+
+        // 이미 인증된 경우
+        if (user.isEmailVerified()) {
+            throw new InvalidUserInputException("이미 인증된 이메일입니다.");
+        }
+
+        // 새 인증 토큰 생성 및 전송
+        String verificationToken = emailService.generateVerificationToken(email);
+        emailService.sendVerificationEmail(email, verificationToken);
     }
 }

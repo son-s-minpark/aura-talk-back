@@ -3,7 +3,6 @@ package com.sonsminpark.auratalkback.domain.user.entity;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -54,12 +53,6 @@ public class User {
     @Column(nullable = false)
     private boolean emailVerified = false;
 
-    @Column(length = 36)
-    private String verificationToken;
-
-    @Column
-    private LocalDateTime verificationTokenExpiryDate;
-
     public void updateStatus(UserStatus status) {
         this.status = status;
     }
@@ -77,5 +70,9 @@ public class User {
         this.username = username;
         this.nickname = nickname;
         this.interests = interests;
+    }
+
+    public void verifyEmail() {
+        this.emailVerified = true;
     }
 }

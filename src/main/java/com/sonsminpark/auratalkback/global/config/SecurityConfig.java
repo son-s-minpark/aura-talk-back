@@ -35,10 +35,14 @@ public class SecurityConfig {
                 .authorizeHttpRequests(authorizeRequests ->
                         authorizeRequests
                                 // 인증 없이 접근 가능
-                                .requestMatchers("/api/users/login", "/api/users", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
-                                // 인증 필요
+                                .requestMatchers("/api/users/login",
+                                        "/api/users",
+                                        "/api/users/verify-email",
+                                        "/api/users/resend-verification",
+                                        "/swagger-ui/**",
+                                        "/v3/api-docs/**").permitAll()
+                                // TODO: 인증 설정 필요하면 추가하기
                                 .requestMatchers("/api/users/{userId}/profile").authenticated()
-                                // TODO: 인증 설정 추가하기
                                 .requestMatchers("/api/users/**").authenticated()
                                 .requestMatchers("/api/friends/**").authenticated()
                                 .requestMatchers("/api/chats/**").authenticated()

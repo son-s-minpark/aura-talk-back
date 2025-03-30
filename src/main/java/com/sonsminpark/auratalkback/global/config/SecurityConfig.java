@@ -34,14 +34,17 @@ public class SecurityConfig {
                         sessionManagement.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(authorizeRequests ->
                         authorizeRequests
-                                .requestMatchers("/api/users/login", "/api/users", "/api/users/logout").permitAll()
+                                // 인증 없이 접근 가능
+                                .requestMatchers("/api/users/login", "/api/users", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
+                                // 인증 필요
+                                .requestMatchers("/api/users/{userId}/profile").authenticated()
+                                // TODO: 인증 설정 추가하기
                                 .requestMatchers("/api/users/**").authenticated()
                                 .requestMatchers("/api/friends/**").authenticated()
                                 .requestMatchers("/api/chats/**").authenticated()
                                 .requestMatchers("/api/chatrooms/**").authenticated()
                                 .requestMatchers("/api/notifications/**").authenticated()
                                 .requestMatchers("/api/ai/**").authenticated()
-                                .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll() // Swagger
                                 .anyRequest().authenticated())
                 .addFilterBefore(new JwtAuthenticationFilter(jwtTokenProvider, redisTemplate),
                         UsernamePasswordAuthenticationFilter.class);

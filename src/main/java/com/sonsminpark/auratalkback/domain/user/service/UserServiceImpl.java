@@ -9,13 +9,11 @@ import com.sonsminpark.auratalkback.domain.user.exception.InvalidUserCredentials
 import com.sonsminpark.auratalkback.domain.user.exception.UserNotFoundException;
 import com.sonsminpark.auratalkback.domain.user.repository.UserRepository;
 import com.sonsminpark.auratalkback.global.jwt.JwtTokenProvider;
+import com.sonsminpark.auratalkback.global.security.TokenBlacklistService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.concurrent.TimeUnit;
 
 @Service
 @RequiredArgsConstructor
@@ -24,7 +22,7 @@ public class UserServiceImpl implements UserService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
-    private final RedisTemplate<String, String> redisTemplate;
+    private final TokenBlacklistService tokenBlacklistService;
 
     @Override
     @Transactional
@@ -64,7 +62,6 @@ public class UserServiceImpl implements UserService {
         user.updateStatus(UserStatus.OFFLINE);
 
         // 토큰 블랙리스트에 추가
-        long validityInMilliseconds = jwtTokenProvider.getTokenValidityInMilliseconds();
-        redisTemplate.opsForValue().set("BLACKLIST:" + token, "logout", validityInMilliseconds, TimeUnit.MILLISECONDS);
+        tokenBlacklistService.addToBlacklist(token, jwtTokenProvider.getTokenValidityInMilliseconds());
     }
 }

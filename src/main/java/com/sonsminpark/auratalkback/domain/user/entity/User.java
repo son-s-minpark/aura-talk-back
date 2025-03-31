@@ -3,7 +3,6 @@ package com.sonsminpark.auratalkback.domain.user.entity;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -48,7 +47,6 @@ public class User {
     @Column(nullable = false)
     private boolean isDeleted;
 
-    @CreationTimestamp
     private LocalDateTime deletedAt;
 
     public void updateStatus(UserStatus status) {
@@ -57,6 +55,7 @@ public class User {
 
     public void delete() {
         this.isDeleted = true;
+        this.deletedAt = LocalDateTime.now();
     }
 
     public void update(String nickname, List<String> interests) {

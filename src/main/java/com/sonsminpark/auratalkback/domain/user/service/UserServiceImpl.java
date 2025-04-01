@@ -1,11 +1,14 @@
 package com.sonsminpark.auratalkback.domain.user.service;
 
-import com.sonsminpark.auratalkback.domain.user.dto.request.LoginRequestDto;
+import com.sonsminpark.auratalkback.domain.user.dto.request.*;
 import com.sonsminpark.auratalkback.domain.user.dto.response.LoginResponseDto;
+import com.sonsminpark.auratalkback.domain.user.dto.response.SignUpResponseDto;
 import com.sonsminpark.auratalkback.domain.user.dto.response.UserResponseDto;
 import com.sonsminpark.auratalkback.domain.user.entity.User;
 import com.sonsminpark.auratalkback.domain.user.entity.UserStatus;
+import com.sonsminpark.auratalkback.domain.user.exception.DuplicateUserException;
 import com.sonsminpark.auratalkback.domain.user.exception.InvalidUserCredentialsException;
+import com.sonsminpark.auratalkback.domain.user.exception.InvalidUserInputException;
 import com.sonsminpark.auratalkback.domain.user.exception.UserNotFoundException;
 import com.sonsminpark.auratalkback.domain.user.repository.UserRepository;
 import com.sonsminpark.auratalkback.global.jwt.JwtTokenProvider;
@@ -15,6 +18,9 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
+import java.util.concurrent.TimeUnit;
+
 @Service
 @RequiredArgsConstructor
 public class UserServiceImpl implements UserService {
@@ -23,6 +29,7 @@ public class UserServiceImpl implements UserService {
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
     private final TokenBlacklistService tokenBlacklistService;
+    private final EmailService emailService;
 
     @Override
     @Transactional
@@ -63,5 +70,130 @@ public class UserServiceImpl implements UserService {
 
         // 토큰 블랙리스트에 추가
         tokenBlacklistService.addToBlacklist(token, jwtTokenProvider.getTokenValidityInMilliseconds());
+    }
+
+    @Override
+    @Transactional
+    public SignUpResponseDto signUp(SignUpRequestDto signUpRequestDto) {
+        // 이메일 중복 확인
+        if (userRepository.existsByEmailAndIsDeletedFalse(signUpRequestDto.getEmail())) {
+            throw DuplicateUserException.ofEmail(signUpRequestDto.getEmail());
+        }
+
+        String encodedPassword = passwordEncoder.encode(signUpRequestDto.getPassword());
+
+        User user = User.builder()
+                .email(signUpRequestDto.getEmail())
+                .password(encodedPassword)
+                .username("임시 사용자명")
+                .nickname("임시 닉네임")
+                .interests(new ArrayList<>())
+                .status(UserStatus.ONLINE)
+                .isDeleted(false)
+                .build();
+
+        User savedUser = userRepository.save(user);
+
+        String verificationToken = emailService.generateVerificationToken(savedUser.getEmail());
+        emailService.sendVerificationEmail(savedUser.getEmail(), verificationToken);
+
+        String token = jwtTokenProvider.createToken(savedUser.getEmail());
+
+        return SignUpResponseDto.builder()
+                .userId(savedUser.getId())
+                .token(token)
+                .build();
+    }
+
+    @Override
+    @Transactional
+    public void deleteUser(Long userId, UserDeleteRequestDto userDeleteRequestDto) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new UserNotFoundException(userId));
+
+        // 이미 탈퇴한 회원인지 확인
+        if (user.isDeleted()) {
+            throw new InvalidUserInputException("이미 탈퇴한 회원입니다.");
+        }
+
+        if (!passwordEncoder.matches(userDeleteRequestDto.getPassword(), user.getPassword())) {
+            throw new InvalidUserCredentialsException("비밀번호가 일치하지 않습니다.");
+        }
+
+        user.delete();
+
+        // 인증 토큰 관련 처리
+        String email = user.getEmail();
+        String token = jwtTokenProvider.createToken(email);
+        long validityInMilliseconds = jwtTokenProvider.getTokenValidityInMilliseconds();
+        tokenBlacklistService.addToBlacklist(token, jwtTokenProvider.getTokenValidityInMilliseconds());
+
+        // 사용자 삭제 예약 (30일 후)
+        scheduleUserDeletion(userId);
+    }
+
+    // 사용자 정보를 30일 후 완전 삭제합니다.
+    private void scheduleUserDeletion(Long userId) {
+        String key = "USER_DELETION:" + userId;
+        long thirtyDaysInMillis = 30L * 24 * 60 * 60 * 1000;
+        tokenBlacklistService.addToBlacklist(key, thirtyDaysInMillis); // 30일 후 만료
+    }
+
+    @Override
+    @Transactional
+    public void setupProfile(Long userId, ProfileSetupRequestDto profileSetupRequestDto) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new UserNotFoundException(userId));
+
+        // 사용자명 중복 확인
+        if (userRepository.existsByUsernameAndIsDeletedFalse(profileSetupRequestDto.getUsername()) &&
+                !user.getUsername().equals(profileSetupRequestDto.getUsername())) {
+            throw DuplicateUserException.ofUsername(profileSetupRequestDto.getUsername());
+        }
+
+        // 닉네임 중복 확인
+        if (userRepository.existsByNicknameAndIsDeletedFalse(profileSetupRequestDto.getNickname()) &&
+                !user.getNickname().equals(profileSetupRequestDto.getNickname())) {
+            throw DuplicateUserException.ofNickname(profileSetupRequestDto.getNickname());
+        }
+
+        user.updateProfile(
+                profileSetupRequestDto.getUsername(),
+                profileSetupRequestDto.getNickname(),
+                profileSetupRequestDto.getInterests()
+        );
+    }
+
+    @Override
+    @Transactional
+    public boolean verifyEmail(EmailVerificationRequestDto emailVerificationRequestDto) {
+        if (!emailService.validateVerificationToken(
+                emailVerificationRequestDto.getEmail(),
+                emailVerificationRequestDto.getToken())) {
+            return false;
+        }
+
+        User user = userRepository.findByEmailAndIsDeletedFalse(emailVerificationRequestDto.getEmail())
+                .orElseThrow(() -> new UserNotFoundException(emailVerificationRequestDto.getEmail(), "존재하지 않는 사용자입니다."));
+
+        user.verifyEmail();
+
+        return true;
+    }
+
+    @Override
+    @Transactional
+    public void resendVerificationEmail(String email) {
+        User user = userRepository.findByEmailAndIsDeletedFalse(email)
+                .orElseThrow(() -> new UserNotFoundException(email, "존재하지 않는 사용자입니다."));
+
+        // 이미 인증된 경우
+        if (user.isEmailVerified()) {
+            throw new InvalidUserInputException("이미 인증된 이메일입니다.");
+        }
+
+        // 새 인증 토큰 생성 및 전송
+        String verificationToken = emailService.generateVerificationToken(email);
+        emailService.sendVerificationEmail(email, verificationToken);
     }
 }

@@ -34,14 +34,21 @@ public class SecurityConfig {
                         sessionManagement.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(authorizeRequests ->
                         authorizeRequests
-                                .requestMatchers("/api/users/login", "/api/users", "/api/users/logout").permitAll()
+                                // 인증 없이 접근 가능
+                                .requestMatchers("/api/users/login",
+                                        "/api/users",
+                                        "/api/users/verify-email",
+                                        "/api/users/resend-verification",
+                                        "/swagger-ui/**",
+                                        "/v3/api-docs/**").permitAll()
+                                // TODO: 인증 설정 필요하면 추가하기
+                                .requestMatchers("/api/users/{userId}/profile").authenticated()
                                 .requestMatchers("/api/users/**").authenticated()
                                 .requestMatchers("/api/friends/**").authenticated()
                                 .requestMatchers("/api/chats/**").authenticated()
                                 .requestMatchers("/api/chatrooms/**").authenticated()
                                 .requestMatchers("/api/notifications/**").authenticated()
                                 .requestMatchers("/api/ai/**").authenticated()
-                                .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll() // Swagger
                                 .anyRequest().authenticated())
                 .addFilterBefore(new JwtAuthenticationFilter(jwtTokenProvider, tokenBlacklistService),
                         UsernamePasswordAuthenticationFilter.class);

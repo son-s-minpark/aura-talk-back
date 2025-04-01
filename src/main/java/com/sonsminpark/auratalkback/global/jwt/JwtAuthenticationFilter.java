@@ -1,5 +1,6 @@
 package com.sonsminpark.auratalkback.global.jwt;
 
+import com.sonsminpark.auratalkback.global.security.TokenBlacklistService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -19,7 +20,7 @@ import java.io.IOException;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtTokenProvider jwtTokenProvider;
-    private final RedisTemplate<String, String> redisTemplate;
+    private final TokenBlacklistService tokenBlacklistService;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
@@ -27,8 +28,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String token = resolveToken(request);
 
         if (StringUtils.hasText(token)) {
-            String blacklistedToken = redisTemplate.opsForValue().get("BLACKLIST:" + token);
-            if (blacklistedToken != null) {
+            if (tokenBlacklistService.isBlacklisted(token)) {
                 log.debug("Blacklisted JWT token found, uri: {}", request.getRequestURI());
             } else if (jwtTokenProvider.validateToken(token)) {
                 Authentication authentication = jwtTokenProvider.getAuthentication(token);

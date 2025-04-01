@@ -12,8 +12,8 @@ import com.sonsminpark.auratalkback.domain.user.exception.InvalidUserInputExcept
 import com.sonsminpark.auratalkback.domain.user.exception.UserNotFoundException;
 import com.sonsminpark.auratalkback.domain.user.repository.UserRepository;
 import com.sonsminpark.auratalkback.global.jwt.JwtTokenProvider;
+import com.sonsminpark.auratalkback.global.security.TokenBlacklistService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,7 +28,7 @@ public class UserServiceImpl implements UserService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
-    private final RedisTemplate<String, String> redisTemplate;
+    private final TokenBlacklistService tokenBlacklistService;
     private final EmailService emailService;
 
     @Override
@@ -69,8 +69,7 @@ public class UserServiceImpl implements UserService {
         user.updateStatus(UserStatus.OFFLINE);
 
         // 토큰 블랙리스트에 추가
-        long validityInMilliseconds = jwtTokenProvider.getTokenValidityInMilliseconds();
-        redisTemplate.opsForValue().set("BLACKLIST:" + token, "logout", validityInMilliseconds, TimeUnit.MILLISECONDS);
+        tokenBlacklistService.addToBlacklist(token, jwtTokenProvider.getTokenValidityInMilliseconds());
     }
 
     @Override
@@ -127,7 +126,7 @@ public class UserServiceImpl implements UserService {
         String email = user.getEmail();
         String token = jwtTokenProvider.createToken(email);
         long validityInMilliseconds = jwtTokenProvider.getTokenValidityInMilliseconds();
-        redisTemplate.opsForValue().set("BLACKLIST:" + token, "logout", validityInMilliseconds, TimeUnit.MILLISECONDS);
+        tokenBlacklistService.addToBlacklist(token, jwtTokenProvider.getTokenValidityInMilliseconds());
 
         // 사용자 삭제 예약 (30일 후)
         scheduleUserDeletion(userId);
@@ -136,7 +135,8 @@ public class UserServiceImpl implements UserService {
     // 사용자 정보를 30일 후 완전 삭제합니다.
     private void scheduleUserDeletion(Long userId) {
         String key = "USER_DELETION:" + userId;
-        redisTemplate.opsForValue().set(key, userId.toString(), 30, TimeUnit.DAYS); // 30일 후 만료
+        long thirtyDaysInMillis = 30L * 24 * 60 * 60 * 1000;
+        tokenBlacklistService.addToBlacklist(key, thirtyDaysInMillis); // 30일 후 만료
     }
 
     @Override

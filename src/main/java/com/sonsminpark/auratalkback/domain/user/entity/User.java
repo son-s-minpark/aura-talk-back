@@ -47,7 +47,6 @@ public class User {
     @Column(nullable = false)
     private boolean isDeleted;
 
-    @CreationTimestamp
     private LocalDateTime deletedAt;
 
     @Column(nullable = false)

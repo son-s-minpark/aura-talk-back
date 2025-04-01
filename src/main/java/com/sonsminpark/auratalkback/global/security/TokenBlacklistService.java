@@ -11,12 +11,12 @@ import java.util.concurrent.TimeUnit;
 public class TokenBlacklistService {
 
     private final RedisTemplate<String, String> redisTemplate;
-    private static final String BLACKLIST_PREFIX = "token:blacklist:";
+    private static final String BLACKLIST_PREFIX = "BLACKLIST:";
 
     /**
      * 토큰을 블랙리스트에 추가합니다.
      *
-     * @param token 블랙리스트에 추가할 JWT 토큰
+     * @param token          블랙리스트에 추가할 JWT 토큰
      * @param expirationTime 토큰 만료까지 남은 시간(밀리초)
      */
     public void addToBlacklist(String token, long expirationTime) {

@@ -19,7 +19,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
-import java.util.concurrent.TimeUnit;
+//import java.util.concurrent.TimeUnit;
 
 @Service
 @RequiredArgsConstructor
@@ -39,7 +39,7 @@ public class UserServiceImpl implements UserService {
                 .orElseThrow(() -> new UserNotFoundException(loginRequestDto.getEmail(), "존재하지 않는 사용자입니다."));
 
         if (!passwordEncoder.matches(loginRequestDto.getPassword(), user.getPassword())) {
-            throw new InvalidUserCredentialsException("이메일 또는 비밀번호가 일치하지 않습니다.");
+            throw InvalidUserCredentialsException.of("이메일 또는 비밀번호가 일치하지 않습니다.");
         }
 
         // 로그인 시 ONLINE으로 변경
@@ -63,7 +63,7 @@ public class UserServiceImpl implements UserService {
 
 
         User user = userRepository.findByEmailAndIsDeletedFalse(email)
-                .orElseThrow(() -> new UserNotFoundException(email, "존재하지 않는 사용자입니다."));
+                .orElseThrow(() -> UserNotFoundException.of(email, "존재하지 않는 사용자입니다."));
 
         // 로그아웃 시 OFFLINE으로 변경
         user.updateStatus(UserStatus.OFFLINE);
@@ -90,12 +90,14 @@ public class UserServiceImpl implements UserService {
                 .interests(new ArrayList<>())
                 .status(UserStatus.ONLINE)
                 .isDeleted(false)
+                .emailVerified(true) // TODO: 이메일 인증 활성화 시 해당 줄 제거하기
                 .build();
 
         User savedUser = userRepository.save(user);
 
-        String verificationToken = emailService.generateVerificationToken(savedUser.getEmail());
-        emailService.sendVerificationEmail(savedUser.getEmail(), verificationToken);
+        // TODO: 이메일 인증 활성화 시 아래 주석 제거하기
+//        String verificationToken = emailService.generateVerificationToken(savedUser.getEmail());
+//        emailService.sendVerificationEmail(savedUser.getEmail(), verificationToken);
 
         String token = jwtTokenProvider.createToken(savedUser.getEmail());
 
@@ -109,15 +111,15 @@ public class UserServiceImpl implements UserService {
     @Transactional
     public void deleteUser(Long userId, UserDeleteRequestDto userDeleteRequestDto) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new UserNotFoundException(userId));
+                .orElseThrow(() -> UserNotFoundException.of(userId));
 
         // 이미 탈퇴한 회원인지 확인
         if (user.isDeleted()) {
-            throw new InvalidUserInputException("이미 탈퇴한 회원입니다.");
+            throw InvalidUserInputException.of("이미 탈퇴한 회원입니다.");
         }
 
         if (!passwordEncoder.matches(userDeleteRequestDto.getPassword(), user.getPassword())) {
-            throw new InvalidUserCredentialsException("비밀번호가 일치하지 않습니다.");
+            throw InvalidUserCredentialsException.of("비밀번호가 일치하지 않습니다.");
         }
 
         user.delete();
@@ -143,7 +145,7 @@ public class UserServiceImpl implements UserService {
     @Transactional
     public void setupProfile(Long userId, ProfileSetupRequestDto profileSetupRequestDto) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new UserNotFoundException(userId));
+                .orElseThrow(() -> UserNotFoundException.of(userId));
 
         // 사용자명 중복 확인
         if (userRepository.existsByUsernameAndIsDeletedFalse(profileSetupRequestDto.getUsername()) &&
@@ -167,16 +169,17 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional
     public boolean verifyEmail(EmailVerificationRequestDto emailVerificationRequestDto) {
-        if (!emailService.validateVerificationToken(
+        // TODO: 항상 성공을 반환하므로 이메일 인증 활성화 시 아래 주석 제거하기
+        /*if (!emailService.validateVerificationToken(
                 emailVerificationRequestDto.getEmail(),
                 emailVerificationRequestDto.getToken())) {
             return false;
         }
 
         User user = userRepository.findByEmailAndIsDeletedFalse(emailVerificationRequestDto.getEmail())
-                .orElseThrow(() -> new UserNotFoundException(emailVerificationRequestDto.getEmail(), "존재하지 않는 사용자입니다."));
+                .orElseThrow(() -> UserNotFoundException.of(emailVerificationRequestDto.getEmail(), "존재하지 않는 사용자입니다."));
 
-        user.verifyEmail();
+        user.verifyEmail();*/
 
         return true;
     }
@@ -184,16 +187,17 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional
     public void resendVerificationEmail(String email) {
-        User user = userRepository.findByEmailAndIsDeletedFalse(email)
-                .orElseThrow(() -> new UserNotFoundException(email, "존재하지 않는 사용자입니다."));
+        // TODO: 아무 값도 반환하지 않으므로 이메일 인증 활성화 시 아래 주석 제거하기
+        /*User user = userRepository.findByEmailAndIsDeletedFalse(email)
+                .orElseThrow(() -> UserNotFoundException.of(email, "존재하지 않는 사용자입니다."));
 
         // 이미 인증된 경우
         if (user.isEmailVerified()) {
-            throw new InvalidUserInputException("이미 인증된 이메일입니다.");
+            throw InvalidUserInputException.of("이미 인증된 이메일입니다.");
         }
 
         // 새 인증 토큰 생성 및 전송
         String verificationToken = emailService.generateVerificationToken(email);
-        emailService.sendVerificationEmail(email, verificationToken);
+        emailService.sendVerificationEmail(email, verificationToken);*/
     }
 }

@@ -90,12 +90,12 @@ public class UserServiceImpl implements UserService {
                 .interests(new ArrayList<>())
                 .status(UserStatus.ONLINE)
                 .isDeleted(false)
-                .emailVerified(true) // TODO: 이메일 인증 필요 시 해당 줄 제거하기
+                .emailVerified(true) // TODO: 이메일 인증 활성화 시 해당 줄 제거하기
                 .build();
 
         User savedUser = userRepository.save(user);
 
-        // TODO: 이메일 인증 필요 시 아래 주석 제거하기
+        // TODO: 이메일 인증 활성화 시 아래 주석 제거하기
 //        String verificationToken = emailService.generateVerificationToken(savedUser.getEmail());
 //        emailService.sendVerificationEmail(savedUser.getEmail(), verificationToken);
 
@@ -169,7 +169,8 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional
     public boolean verifyEmail(EmailVerificationRequestDto emailVerificationRequestDto) {
-        if (!emailService.validateVerificationToken(
+        // TODO: 항상 성공을 반환하므로 이메일 인증 활성화 시 아래 주석 제거하기
+        /*if (!emailService.validateVerificationToken(
                 emailVerificationRequestDto.getEmail(),
                 emailVerificationRequestDto.getToken())) {
             return false;
@@ -178,7 +179,7 @@ public class UserServiceImpl implements UserService {
         User user = userRepository.findByEmailAndIsDeletedFalse(emailVerificationRequestDto.getEmail())
                 .orElseThrow(() -> new UserNotFoundException(emailVerificationRequestDto.getEmail(), "존재하지 않는 사용자입니다."));
 
-        user.verifyEmail();
+        user.verifyEmail();*/
 
         return true;
     }
@@ -186,7 +187,8 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional
     public void resendVerificationEmail(String email) {
-        User user = userRepository.findByEmailAndIsDeletedFalse(email)
+        // TODO: 아무 값도 반환하지 않으므로 이메일 인증 활성화 시 아래 주석 제거하기
+        /*User user = userRepository.findByEmailAndIsDeletedFalse(email)
                 .orElseThrow(() -> new UserNotFoundException(email, "존재하지 않는 사용자입니다."));
 
         // 이미 인증된 경우
@@ -196,6 +198,6 @@ public class UserServiceImpl implements UserService {
 
         // 새 인증 토큰 생성 및 전송
         String verificationToken = emailService.generateVerificationToken(email);
-        emailService.sendVerificationEmail(email, verificationToken);
+        emailService.sendVerificationEmail(email, verificationToken);*/
     }
 }

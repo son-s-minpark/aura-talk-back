@@ -90,12 +90,14 @@ public class UserServiceImpl implements UserService {
                 .interests(new ArrayList<>())
                 .status(UserStatus.ONLINE)
                 .isDeleted(false)
+                .emailVerified(true) // TODO: 이메일 인증 필요 시 해당 줄 제거하기
                 .build();
 
         User savedUser = userRepository.save(user);
 
-        String verificationToken = emailService.generateVerificationToken(savedUser.getEmail());
-        emailService.sendVerificationEmail(savedUser.getEmail(), verificationToken);
+        // TODO: 이메일 인증 필요 시 아래 주석 제거하기
+//        String verificationToken = emailService.generateVerificationToken(savedUser.getEmail());
+//        emailService.sendVerificationEmail(savedUser.getEmail(), verificationToken);
 
         String token = jwtTokenProvider.createToken(savedUser.getEmail());
 

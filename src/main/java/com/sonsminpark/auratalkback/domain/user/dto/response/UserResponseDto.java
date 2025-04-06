@@ -22,6 +22,7 @@ public class UserResponseDto {
     private String nickname;
     private List<String> interests;
     private UserStatus status;
+    private boolean randomChatEnabled;
     private LocalDateTime createdAt;
 
     public static UserResponseDto from(User user) {
@@ -32,6 +33,7 @@ public class UserResponseDto {
                 .nickname(user.getNickname())
                 .interests(user.getInterests())
                 .status(user.getStatus())
+                .randomChatEnabled(user.isRandomChatEnabled())
                 .createdAt(user.getCreatedAt())
                 .build();
     }

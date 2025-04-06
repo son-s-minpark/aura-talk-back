@@ -200,4 +200,30 @@ public class UserServiceImpl implements UserService {
         String verificationToken = emailService.generateVerificationToken(email);
         emailService.sendVerificationEmail(email, verificationToken);*/
     }
+
+    @Override
+    @Transactional(readOnly = true)
+    public UserResponseDto getUserProfile(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> UserNotFoundException.of(userId));
+
+        if (user.isDeleted()) {
+            throw InvalidUserInputException.of("탈퇴한 회원의 프로필은 조회할 수 없습니다.");
+        }
+
+        return UserResponseDto.from(user);
+    }
+
+    @Override
+    @Transactional
+    public void updateChatSettings(Long userId, boolean randomChatEnabled) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> UserNotFoundException.of(userId));
+
+        if (user.isDeleted()) {
+            throw InvalidUserInputException.of("탈퇴한 회원은 설정을 변경할 수 없습니다.");
+        }
+
+        user.updateChatSettings(randomChatEnabled);
+    }
 }

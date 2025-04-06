@@ -52,6 +52,9 @@ public class User {
     @Column(nullable = false)
     private boolean emailVerified = false;
 
+    @Column(nullable = false)
+    private boolean randomChatEnabled = false;
+
     public void updateStatus(UserStatus status) {
         this.status = status;
     }
@@ -71,6 +74,10 @@ public class User {
         this.username = username;
         this.nickname = nickname;
         this.interests = interests;
+    }
+
+    public void updateChatSettings(boolean randomChatEnabled) {
+        this.randomChatEnabled = randomChatEnabled;
     }
 
     public void verifyEmail() {

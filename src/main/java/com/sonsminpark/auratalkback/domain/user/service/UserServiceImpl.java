@@ -36,7 +36,7 @@ public class UserServiceImpl implements UserService {
     public LoginResponseDto login(LoginRequestDto loginRequestDto) {
 
         User user = userRepository.findByEmailAndIsDeletedFalse(loginRequestDto.getEmail())
-                .orElseThrow(() -> new UserNotFoundException(loginRequestDto.getEmail(), "존재하지 않는 사용자입니다."));
+                .orElseThrow(() -> UserNotFoundException.of(loginRequestDto.getEmail(), "존재하지 않는 사용자입니다."));
 
         if (!passwordEncoder.matches(loginRequestDto.getPassword(), user.getPassword())) {
             throw InvalidUserCredentialsException.of("이메일 또는 비밀번호가 일치하지 않습니다.");

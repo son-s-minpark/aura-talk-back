@@ -25,5 +25,8 @@ public class ProfileSetupRequestDto {
     @Pattern(regexp = "^[^\\s]+$", message = "닉네임에 공백을 포함할 수 없습니다.")
     private String nickname;
 
+    @Size(max = 100, message = "한 줄 소개는 100자 이하이어야 합니다.")
+    private String description;
+
     private List<String> interests;
 }

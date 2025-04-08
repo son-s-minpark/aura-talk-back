@@ -3,6 +3,7 @@ package com.sonsminpark.auratalkback.domain.user.service;
 import com.sonsminpark.auratalkback.domain.user.dto.request.*;
 import com.sonsminpark.auratalkback.domain.user.dto.response.LoginResponseDto;
 import com.sonsminpark.auratalkback.domain.user.dto.response.SignUpResponseDto;
+import com.sonsminpark.auratalkback.domain.user.dto.response.UserResponseDto;
 
 public interface UserService {
     // 로그인
@@ -25,4 +26,10 @@ public interface UserService {
 
     // 이메일 인증 메일 재전송
     void resendVerificationEmail(String email);
+
+    // 프로필 조회
+    UserResponseDto getUserProfile(Long userId);
+
+    // 랜덤 채팅 설정 업데이트
+    void updateChatSettings(Long userId, boolean randomChatEnabled);
 }

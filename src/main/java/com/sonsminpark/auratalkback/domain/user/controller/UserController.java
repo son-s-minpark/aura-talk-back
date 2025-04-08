@@ -3,10 +3,12 @@ package com.sonsminpark.auratalkback.domain.user.controller;
 import com.sonsminpark.auratalkback.domain.user.dto.request.*;
 import com.sonsminpark.auratalkback.domain.user.dto.response.LoginResponseDto;
 import com.sonsminpark.auratalkback.domain.user.dto.response.SignUpResponseDto;
+import com.sonsminpark.auratalkback.domain.user.dto.response.UserResponseDto;
 import com.sonsminpark.auratalkback.domain.user.service.UserService;
 import com.sonsminpark.auratalkback.global.common.ApiResponse;
 import com.sonsminpark.auratalkback.global.exception.ErrorCode;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -30,7 +32,11 @@ public class UserController {
     }
 
     @PostMapping("/logout")
-    @Operation(summary = "로그아웃", description = "현재 로그인된 사용자를 로그아웃 처리합니다.")
+    @Operation(
+            summary = "로그아웃",
+            description = "현재 로그인된 사용자를 로그아웃 처리합니다.",
+            security = { @SecurityRequirement(name = "bearerAuth") }
+    )
     public ResponseEntity<ApiResponse<Void>> logout(@RequestHeader("Authorization") String authHeader) {
         String token = authHeader.substring(7);
         userService.logout(token);
@@ -46,7 +52,11 @@ public class UserController {
     }
 
     @DeleteMapping("/{userId}")
-    @Operation(summary = "회원탈퇴", description = "회원 탈퇴 처리를 합니다. 30일간 정보를 보관 후 삭제됩니다.")
+    @Operation(
+            summary = "회원탈퇴",
+            description = "회원 탈퇴 처리를 합니다. 30일간 정보를 보관 후 삭제됩니다.",
+            security = { @SecurityRequirement(name = "bearerAuth") }
+    )
     public ResponseEntity<ApiResponse<Void>> deleteUser(
             @PathVariable Long userId,
             @Valid @RequestBody UserDeleteRequestDto userDeleteRequestDto) {
@@ -55,7 +65,11 @@ public class UserController {
     }
 
     @PutMapping("/{userId}/profile")
-    @Operation(summary = "프로필 설정", description = "회원가입 후 사용자 프로필 정보를 설정합니다.")
+    @Operation(
+            summary = "프로필 설정",
+            description = "회원가입 후 사용자 프로필 정보를 설정합니다.",
+            security = { @SecurityRequirement(name = "bearerAuth") }
+    )
     public ResponseEntity<ApiResponse<Void>> setupProfile(
             @PathVariable Long userId,
             @Valid @RequestBody ProfileSetupRequestDto profileSetupRequestDto) {
@@ -81,5 +95,29 @@ public class UserController {
     public ResponseEntity<ApiResponse<Void>> resendVerificationEmail(@Valid @RequestBody EmailResendRequestDto requestDto) {
         userService.resendVerificationEmail(requestDto.getEmail());
         return ResponseEntity.ok(ApiResponse.success("인증 이메일이 재전송되었습니다."));
+    }
+
+    @GetMapping("/{userId}")
+    @Operation(
+            summary = "프로필 조회",
+            description = "사용자 프로필 정보를 조회합니다.",
+            security = { @SecurityRequirement(name = "bearerAuth") }
+    )
+    public ResponseEntity<ApiResponse<UserResponseDto>> getUserProfile(@PathVariable Long userId) {
+        UserResponseDto userResponseDto = userService.getUserProfile(userId);
+        return ResponseEntity.ok(ApiResponse.success("프로필 조회에 성공했습니다.", userResponseDto));
+    }
+
+    @PutMapping("/{userId}/chat-settings")
+    @Operation(
+            summary = "랜덤 채팅 설정",
+            description = "랜덤 채팅 매칭 활성화/비활성화 설정을 변경합니다.",
+            security = { @SecurityRequirement(name = "bearerAuth") }
+    )
+    public ResponseEntity<ApiResponse<Void>> updateChatSettings(
+            @PathVariable Long userId,
+            @Valid @RequestBody ChatSettingsRequestDto chatSettingsRequestDto) {
+        userService.updateChatSettings(userId, chatSettingsRequestDto.isRandomChatEnabled());
+        return ResponseEntity.ok(ApiResponse.success("랜덤 채팅 설정이 변경되었습니다."));
     }
 }

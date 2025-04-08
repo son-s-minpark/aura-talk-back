@@ -20,8 +20,10 @@ public class UserResponseDto {
     private String email;
     private String username;
     private String nickname;
+    private String description;
     private List<String> interests;
     private UserStatus status;
+    private boolean randomChatEnabled;
     private LocalDateTime createdAt;
 
     public static UserResponseDto from(User user) {
@@ -30,8 +32,10 @@ public class UserResponseDto {
                 .email(user.getEmail())
                 .username(user.getUsername())
                 .nickname(user.getNickname())
+                .description(user.getDescription())
                 .interests(user.getInterests())
                 .status(user.getStatus())
+                .randomChatEnabled(user.isRandomChatEnabled())
                 .createdAt(user.getCreatedAt())
                 .build();
     }

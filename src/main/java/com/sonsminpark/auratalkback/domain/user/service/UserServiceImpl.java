@@ -36,7 +36,7 @@ public class UserServiceImpl implements UserService {
     public LoginResponseDto login(LoginRequestDto loginRequestDto) {
 
         User user = userRepository.findByEmailAndIsDeletedFalse(loginRequestDto.getEmail())
-                .orElseThrow(() -> new UserNotFoundException(loginRequestDto.getEmail(), "존재하지 않는 사용자입니다."));
+                .orElseThrow(() -> UserNotFoundException.of(loginRequestDto.getEmail(), "존재하지 않는 사용자입니다."));
 
         if (!passwordEncoder.matches(loginRequestDto.getPassword(), user.getPassword())) {
             throw InvalidUserCredentialsException.of("이메일 또는 비밀번호가 일치하지 않습니다.");
@@ -162,7 +162,8 @@ public class UserServiceImpl implements UserService {
         user.updateProfile(
                 profileSetupRequestDto.getUsername(),
                 profileSetupRequestDto.getNickname(),
-                profileSetupRequestDto.getInterests()
+                profileSetupRequestDto.getInterests(),
+                profileSetupRequestDto.getDescription()
         );
     }
 
@@ -199,5 +200,31 @@ public class UserServiceImpl implements UserService {
         // 새 인증 토큰 생성 및 전송
         String verificationToken = emailService.generateVerificationToken(email);
         emailService.sendVerificationEmail(email, verificationToken);*/
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public UserResponseDto getUserProfile(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> UserNotFoundException.of(userId));
+
+        if (user.isDeleted()) {
+            throw InvalidUserInputException.of("탈퇴한 회원의 프로필은 조회할 수 없습니다.");
+        }
+
+        return UserResponseDto.from(user);
+    }
+
+    @Override
+    @Transactional
+    public void updateChatSettings(Long userId, boolean randomChatEnabled) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> UserNotFoundException.of(userId));
+
+        if (user.isDeleted()) {
+            throw InvalidUserInputException.of("탈퇴한 회원은 설정을 변경할 수 없습니다.");
+        }
+
+        user.updateChatSettings(randomChatEnabled);
     }
 }

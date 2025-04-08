@@ -162,7 +162,8 @@ public class UserServiceImpl implements UserService {
         user.updateProfile(
                 profileSetupRequestDto.getUsername(),
                 profileSetupRequestDto.getNickname(),
-                profileSetupRequestDto.getInterests()
+                profileSetupRequestDto.getInterests(),
+                profileSetupRequestDto.getDescription()
         );
     }
 

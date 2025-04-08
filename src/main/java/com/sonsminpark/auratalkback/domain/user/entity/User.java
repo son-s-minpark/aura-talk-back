@@ -32,6 +32,9 @@ public class User {
     @Column(nullable = false, length = 15)
     private String nickname;
 
+    @Column(length = 100)
+    private String description;
+
     @ElementCollection
     @CollectionTable(name = "user_interests", joinColumns = @JoinColumn(name = "user_id"))
     @Column(name = "interest")
@@ -70,10 +73,11 @@ public class User {
         this.interests = interests;
     }
 
-    public void updateProfile(String username, String nickname, List<String> interests) {
+    public void updateProfile(String username, String nickname, List<String> interests, String description) {
         this.username = username;
         this.nickname = nickname;
         this.interests = interests;
+        this.description = description;
     }
 
     public void updateChatSettings(boolean randomChatEnabled) {

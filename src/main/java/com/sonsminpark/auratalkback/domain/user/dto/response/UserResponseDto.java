@@ -20,6 +20,7 @@ public class UserResponseDto {
     private String email;
     private String username;
     private String nickname;
+    private String description;
     private List<String> interests;
     private UserStatus status;
     private boolean randomChatEnabled;
@@ -31,6 +32,7 @@ public class UserResponseDto {
                 .email(user.getEmail())
                 .username(user.getUsername())
                 .nickname(user.getNickname())
+                .description(user.getDescription())
                 .interests(user.getInterests())
                 .status(user.getStatus())
                 .randomChatEnabled(user.isRandomChatEnabled())

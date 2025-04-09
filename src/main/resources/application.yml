@@ -41,3 +41,8 @@ jwt:
 
 server:
   port: ${SERVER_PORT}
+
+swagger:
+  servers:
+    prodHttps: ${HTTPS_URL}
+    prodHttp: ${HTTP_URL}

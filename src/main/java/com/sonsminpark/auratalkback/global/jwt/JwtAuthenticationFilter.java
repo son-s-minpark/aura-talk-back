@@ -98,7 +98,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 path.equals("/api/users/login") ||
                 (path.equals("/api/users") && "POST".equalsIgnoreCase(method)) ||
                 path.startsWith("/api/users/verify-email") ||
-                path.startsWith("/api/users/resend-verification");
+                path.startsWith("/api/users/resend-verification") ||
+                path.equals("/api/health");
     }
 
     private boolean shouldBypassMissingTokenCheck(HttpServletRequest request) {

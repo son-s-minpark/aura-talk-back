@@ -166,10 +166,19 @@ jobs:
             --query "{StandardOutputContent: StandardOutputContent, StandardErrorContent: StandardErrorContent}" \
             --output json
 
-      - name: Update current environment
+      - name: Send Discord alert on deployment failure
+        if: env.HEALTH_STATUS == 'failed'
+        uses: Ilshidur/action-discord@master
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+        with:
+          args: '"AuraTalk 배포 실패! ${{ env.TARGET_ENV }} 환경에서 헬스 체크가 실패했습니다. (브랜치: ${{ github.ref_name }})"'
+
+      - name: Update current environment or Exit on failure
         run: |
           if [[ "$HEALTH_STATUS" == "success" ]]; then
             aws ssm put-parameter --name "current_env" --value "$TARGET_ENV" --type "String" --overwrite
           else
             echo "Health check failed! Skipping parameter update."
+            exit 1
           fi

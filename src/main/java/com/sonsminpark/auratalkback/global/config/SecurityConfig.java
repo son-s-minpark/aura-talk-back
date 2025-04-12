@@ -40,6 +40,9 @@ public class SecurityConfig {
                                 // 인증 없이 접근 가능
                                 .requestMatchers("/api/users/login", "/api/users",
                                         "/api/users/verify-email", "/api/users/resend-verification").permitAll()
+                                // 관심사 API 접근 설정
+                                .requestMatchers("/api/interests", "/api/interests/category/**").permitAll()
+                                .requestMatchers("/api/interests/*/users").authenticated()
                                 // TODO: 인증 설정 필요하면 추가하기
                                 .anyRequest().authenticated())
                 .addFilterBefore(new JwtAuthenticationFilter(jwtTokenProvider, tokenBlacklistService),

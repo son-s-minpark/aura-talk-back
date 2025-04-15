@@ -16,6 +16,10 @@ spring:
         dialect: org.hibernate.dialect.MySQL8Dialect
   session:
     store-type: none
+  servlet:
+    multipart:
+      max-file-size: 500MB
+      max-request-size: 500MB
 
   data:
     redis:

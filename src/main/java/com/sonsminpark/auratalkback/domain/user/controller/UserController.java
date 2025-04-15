@@ -130,7 +130,7 @@ public class UserController {
         return ResponseEntity.ok(ApiResponse.success("랜덤 채팅 설정이 변경되었습니다."));
     }
 
-    @PostMapping("/profile-image")
+    @PostMapping(value = "/profile-image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @Operation(
             summary = "프로필 이미지 업로드",
             description = "사용자의 프로필 이미지를 업로드합니다.",

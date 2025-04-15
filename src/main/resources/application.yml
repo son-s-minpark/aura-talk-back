@@ -21,7 +21,7 @@ spring:
     redis:
       port: ${REDIS_PORT}
       host: ${REDIS_LOCAL_HOST}
-      password: ${REDIS_PASSWORD}\
+      password: ${REDIS_PASSWORD}
 
   mail:
     host: smtp.gmail.com
@@ -46,3 +46,13 @@ swagger:
   servers:
     prodHttps: ${HTTPS_URL}
     prodHttp: ${HTTP_URL}
+
+cloud:
+  aws:
+    credentials:
+      access-key: ${S3_ACCESS_KEY}
+      secret-key: ${S3_SECRET_KEY}
+    region:
+      static: ap-northeast-2
+    s3:
+      bucket: ${S3_BUCKET_NAME}

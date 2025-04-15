@@ -2,19 +2,27 @@ package com.sonsminpark.auratalkback.domain.user.controller;
 
 import com.sonsminpark.auratalkback.domain.user.dto.request.*;
 import com.sonsminpark.auratalkback.domain.user.dto.response.LoginResponseDto;
+import com.sonsminpark.auratalkback.domain.user.dto.response.ProfileImageResponseDto;
 import com.sonsminpark.auratalkback.domain.user.dto.response.SignUpResponseDto;
 import com.sonsminpark.auratalkback.domain.user.dto.response.UserResponseDto;
+import com.sonsminpark.auratalkback.domain.user.service.ProfileImageService;
 import com.sonsminpark.auratalkback.domain.user.service.UserService;
 import com.sonsminpark.auratalkback.global.common.ApiResponse;
 import com.sonsminpark.auratalkback.global.exception.ErrorCode;
+import com.sonsminpark.auratalkback.global.security.CustomUserDetails;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.io.IOException;
 
 @RestController
 @RequestMapping("/api/users")
@@ -23,6 +31,7 @@ import org.springframework.web.bind.annotation.*;
 public class UserController {
 
     private final UserService userService;
+    private final ProfileImageService profileImageService;
 
     @PostMapping("/login")
     @Operation(summary = "로그인", description = "이메일과 비밀번호를 통해 로그인합니다.")
@@ -119,5 +128,30 @@ public class UserController {
             @Valid @RequestBody ChatSettingsRequestDto chatSettingsRequestDto) {
         userService.updateChatSettings(userId, chatSettingsRequestDto.isRandomChatEnabled());
         return ResponseEntity.ok(ApiResponse.success("랜덤 채팅 설정이 변경되었습니다."));
+    }
+
+    @PostMapping("/profile-image")
+    @Operation(
+            summary = "프로필 이미지 업로드",
+            description = "사용자의 프로필 이미지를 업로드합니다.",
+            security = { @SecurityRequirement(name = "bearerAuth") }
+    )
+    public ResponseEntity<ApiResponse<ProfileImageResponseDto>> updateProfileImage(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @RequestPart("image") MultipartFile image) throws IOException {
+        Long userId = userDetails.getUserId();
+        ProfileImageResponseDto profileImageResponseDto = profileImageService.uploadProfileImage(userId, image);
+        return ResponseEntity.ok(ApiResponse.success("프로필 이미지가 업로드되었습니다.", profileImageResponseDto));
+    }
+
+    @GetMapping("/{userId}/profile-image")
+    @Operation(
+            summary = "프로필 이미지 조회",
+            description = "사용자의 프로필 이미지 URL을 조회합니다.",
+            security = { @SecurityRequirement(name = "bearerAuth") }
+    )
+    public ResponseEntity<ApiResponse<ProfileImageResponseDto>> getProfileImage(@PathVariable Long userId) {
+        ProfileImageResponseDto profileImageResponseDto = profileImageService.getProfileImageUrl(userId);
+        return ResponseEntity.ok(ApiResponse.success("프로필 이미지 조회에 성공했습니다.", profileImageResponseDto));
     }
 }

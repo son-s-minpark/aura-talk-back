@@ -21,10 +21,6 @@ public class CustomUserDetails implements UserDetails {
         this.password = user.getPassword();
     }
 
-    public Long getUserId() {
-        return userId;
-    }
-
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
         return Collections.singletonList(() -> "ROLE_USER");

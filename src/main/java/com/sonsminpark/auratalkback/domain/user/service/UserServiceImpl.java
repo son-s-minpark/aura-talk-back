@@ -30,6 +30,7 @@ public class UserServiceImpl implements UserService {
     private final JwtTokenProvider jwtTokenProvider;
     private final TokenBlacklistService tokenBlacklistService;
     private final EmailService emailService;
+    private final UserProfileImageService userProfileImageService;
 
     @Override
     @Transactional
@@ -94,6 +95,8 @@ public class UserServiceImpl implements UserService {
                 .build();
 
         User savedUser = userRepository.save(user);
+
+        userProfileImageService.createDefaultProfileIamge(savedUser.getId());
 
         // TODO: 이메일 인증 활성화 시 아래 주석 제거하기
 //        String verificationToken = emailService.generateVerificationToken(savedUser.getEmail());

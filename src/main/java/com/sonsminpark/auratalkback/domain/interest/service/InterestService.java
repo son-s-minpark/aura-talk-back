@@ -59,9 +59,7 @@ public class InterestService {
         Interest interest = interestRepository.findByName(interestName)
                 .orElseThrow(() -> new InterestNotFoundException(ErrorCode.ENTITY_NOT_FOUND, "존재하지 않는 관심사입니다: " + interestName));
 
-        List<User> users = userRepository.findAll().stream()
-                .filter(user -> !user.isDeleted() && user.getInterests().contains(interestName))
-                .collect(Collectors.toList());
+        List<User> users = userRepository.findActiveUsersByInterest(interestName);
 
         List<UserResponseDto> userDtos = users.stream()
                 .map(UserResponseDto::from)

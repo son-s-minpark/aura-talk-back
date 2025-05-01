@@ -16,10 +16,10 @@ public interface UserService {
     SignUpResponseDto signUp(SignUpRequestDto signUpRequestDto);
 
     // 회원탈퇴
-    void deleteUser(Long userId, UserDeleteRequestDto userDeleteRequestDto);
+    void deleteUser(String token, UserDeleteRequestDto userDeleteRequestDto);
 
     // 프로필 설정
-    void setupProfile(Long userId, ProfileSetupRequestDto profileSetupRequestDto);
+    void setupProfile(String token, ProfileSetupRequestDto profileSetupRequestDto);
 
     // 이메일 인증
     boolean verifyEmail(EmailVerificationRequestDto emailVerificationRequestDto);
@@ -28,8 +28,8 @@ public interface UserService {
     void resendVerificationEmail(String email);
 
     // 프로필 조회
-    UserResponseDto getUserProfile(Long userId);
+    UserResponseDto getUserProfile(String token);
 
     // 랜덤 채팅 설정 업데이트
-    void updateChatSettings(Long userId, boolean randomChatEnabled);
+    void updateChatSettings(String token, boolean randomChatEnabled);
 }

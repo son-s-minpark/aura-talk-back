@@ -39,7 +39,7 @@ public class UserProfileImageServiceImpl implements UserProfileImageService {
 
     @Override
     @Transactional
-    public ProfileImageResponseDto createDefaultProfileIamge(Long userId) {
+    public ProfileImageResponseDto createDefaultProfileImage(Long userId) {
         User user = userRepository.findByIdAndIsDeletedFalse(userId)
                 .orElseThrow(() -> UserNotFoundException.of(userId));
 

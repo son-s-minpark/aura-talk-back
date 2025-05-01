@@ -4,7 +4,7 @@ import com.sonsminpark.auratalkback.domain.user.dto.response.ProfileImageRespons
 
 public interface UserProfileImageService {
 
-    ProfileImageResponseDto createDefaultProfileIamge(Long userId);
+    ProfileImageResponseDto createDefaultProfileImage(Long userId);
 
     ProfileImageResponseDto getProfileImage(Long userId);
 

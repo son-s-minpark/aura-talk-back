@@ -96,7 +96,7 @@ public class UserServiceImpl implements UserService {
 
         User savedUser = userRepository.save(user);
 
-        userProfileImageService.createDefaultProfileIamge(savedUser.getId());
+        userProfileImageService.createDefaultProfileImage(savedUser.getId());
 
         // TODO: 이메일 인증 활성화 시 아래 주석 제거하기
 //        String verificationToken = emailService.generateVerificationToken(savedUser.getEmail());

@@ -44,6 +44,8 @@ public class SecurityConfig {
                                 // 관심사 API 접근 설정
                                 .requestMatchers("/api/interests", "/api/interests/category/**").permitAll()
                                 .requestMatchers("/api/interests/*/users").authenticated()
+                                // 채팅방 API 접근 설정
+                                .requestMatchers("/ws/**", "/ws").permitAll()
                                 // TODO: 인증 설정 필요하면 추가하기
                                 .anyRequest().authenticated())
                 .addFilterBefore(new JwtAuthenticationFilter(jwtTokenProvider, tokenBlacklistService),

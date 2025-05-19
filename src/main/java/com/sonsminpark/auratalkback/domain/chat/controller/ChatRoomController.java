@@ -3,6 +3,7 @@ package com.sonsminpark.auratalkback.domain.chat.controller;
 import com.sonsminpark.auratalkback.domain.chat.dto.request.ChatInviteRequestDto;
 import com.sonsminpark.auratalkback.domain.chat.dto.request.ChatRoomCreateRequestDto;
 import com.sonsminpark.auratalkback.domain.chat.dto.response.ChatInviteResponseDto;
+import com.sonsminpark.auratalkback.domain.chat.dto.response.ChatInvitationResponseDto;
 import com.sonsminpark.auratalkback.domain.chat.dto.response.ChatRoomResponseDto;
 import com.sonsminpark.auratalkback.domain.chat.service.ChatService;
 import com.sonsminpark.auratalkback.global.common.ApiResponse;
@@ -91,7 +92,7 @@ public class ChatRoomController {
             description = "채팅방에 친구를 초대합니다.",
             security = {@SecurityRequirement(name = "bearerAuth")}
     )
-    public ResponseEntity<ApiResponse<Void>> inviteUser(
+    public ResponseEntity<ApiResponse<ChatInvitationResponseDto>> inviteUser(
             @RequestHeader("Authorization") String authHeader,
             @PathVariable Long chatroomId,
             @Valid @RequestBody ChatInviteRequestDto requestDto) {
@@ -99,8 +100,8 @@ public class ChatRoomController {
         String token = authHeader.substring(7);
         Long userId = jwtTokenProvider.getUserIdFromToken(token);
 
-        chatService.inviteUser(chatroomId, requestDto, userId);
-        return ResponseEntity.ok(ApiResponse.success("초대 요청을 전송했습니다."));
+        ChatInvitationResponseDto invitation = chatService.inviteUser(chatroomId, requestDto, userId);
+        return ResponseEntity.ok(ApiResponse.success("초대 요청을 전송했습니다.", invitation));
     }
 
     @PostMapping("/{chatroomId}/invite-link")
@@ -120,13 +121,63 @@ public class ChatRoomController {
         return ResponseEntity.ok(ApiResponse.success("초대 링크가 생성되었습니다.", responseDto));
     }
 
-    @PostMapping("/invite/accept")
+    @GetMapping("/invitations/pending")
+    @Operation(
+            summary = "대기중인 초대 조회",
+            description = "사용자에게 온 대기중인 초대 목록을 조회합니다.",
+            security = {@SecurityRequirement(name = "bearerAuth")}
+    )
+    public ResponseEntity<ApiResponse<List<ChatInvitationResponseDto>>> getPendingInvitations(
+            @RequestHeader("Authorization") String authHeader) {
+
+        String token = authHeader.substring(7);
+        Long userId = jwtTokenProvider.getUserIdFromToken(token);
+
+        List<ChatInvitationResponseDto> invitations = chatService.getPendingInvitations(userId);
+        return ResponseEntity.ok(ApiResponse.success("대기중인 초대 목록 조회 성공", invitations));
+    }
+
+    @PostMapping("/invitations/{invitationId}/accept")
     @Operation(
             summary = "초대 수락",
             description = "채팅방 초대를 수락합니다.",
             security = {@SecurityRequirement(name = "bearerAuth")}
     )
-    public ResponseEntity<ApiResponse<Void>> acceptInvite(
+    public ResponseEntity<ApiResponse<Void>> acceptInvitation(
+            @RequestHeader("Authorization") String authHeader,
+            @PathVariable Long invitationId) {
+
+        String token = authHeader.substring(7);
+        Long userId = jwtTokenProvider.getUserIdFromToken(token);
+
+        chatService.acceptInvitation(invitationId, userId);
+        return ResponseEntity.ok(ApiResponse.success("초대를 수락했습니다."));
+    }
+
+    @PostMapping("/invitations/{invitationId}/reject")
+    @Operation(
+            summary = "초대 거절",
+            description = "채팅방 초대를 거절합니다.",
+            security = {@SecurityRequirement(name = "bearerAuth")}
+    )
+    public ResponseEntity<ApiResponse<Void>> rejectInvitation(
+            @RequestHeader("Authorization") String authHeader,
+            @PathVariable Long invitationId) {
+
+        String token = authHeader.substring(7);
+        Long userId = jwtTokenProvider.getUserIdFromToken(token);
+
+        chatService.rejectInvitation(invitationId, userId);
+        return ResponseEntity.ok(ApiResponse.success("초대를 거절했습니다."));
+    }
+
+    @PostMapping("/invite/accept")
+    @Operation(
+            summary = "초대 링크 수락",
+            description = "채팅방 초대 링크를 통한 초대를 수락합니다.",
+            security = {@SecurityRequirement(name = "bearerAuth")}
+    )
+    public ResponseEntity<ApiResponse<Void>> acceptInviteLink(
             @RequestHeader("Authorization") String authHeader,
             @RequestParam String inviteCode) {
 
@@ -139,11 +190,11 @@ public class ChatRoomController {
 
     @PostMapping("/invite/reject")
     @Operation(
-            summary = "초대 거절",
-            description = "채팅방 초대를 거절합니다.",
+            summary = "초대 링크 거절",
+            description = "채팅방 초대 링크를 통한 초대를 거절합니다.",
             security = {@SecurityRequirement(name = "bearerAuth")}
     )
-    public ResponseEntity<ApiResponse<Void>> rejectInvite(
+    public ResponseEntity<ApiResponse<Void>> rejectInviteLink(
             @RequestHeader("Authorization") String authHeader,
             @RequestParam String inviteCode) {
 

@@ -4,6 +4,7 @@ import com.sonsminpark.auratalkback.domain.chat.dto.request.ChatInviteRequestDto
 import com.sonsminpark.auratalkback.domain.chat.dto.request.ChatMessageRequestDto;
 import com.sonsminpark.auratalkback.domain.chat.dto.request.ChatRoomCreateRequestDto;
 import com.sonsminpark.auratalkback.domain.chat.dto.response.ChatInviteResponseDto;
+import com.sonsminpark.auratalkback.domain.chat.dto.response.ChatInvitationResponseDto;
 import com.sonsminpark.auratalkback.domain.chat.dto.response.ChatMessageResponseDto;
 import com.sonsminpark.auratalkback.domain.chat.dto.response.ChatRoomResponseDto;
 import org.springframework.data.domain.Page;
@@ -22,11 +23,16 @@ public interface ChatService {
     Page<ChatMessageResponseDto> getMessages(Long chatRoomId, Long userId, Pageable pageable);
     void deleteMessage(Long messageId, Long userId);
 
-    // 초대
+    // 초대 링크
     ChatInviteResponseDto createInviteLink(Long chatRoomId, Long userId);
-    void inviteUser(Long chatRoomId, ChatInviteRequestDto requestDto, Long userId);
     void acceptInvite(String inviteCode, Long userId);
     void rejectInvite(String inviteCode, Long userId);
+
+    // 초대
+    ChatInvitationResponseDto inviteUser(Long chatRoomId, ChatInviteRequestDto requestDto, Long userId);
+    List<ChatInvitationResponseDto> getPendingInvitations(Long userId);
+    void acceptInvitation(Long invitationId, Long userId);
+    void rejectInvitation(Long invitationId, Long userId);
 
     // 설정
     void updateNotificationSettings(Long chatRoomId, Long userId, boolean enabled);

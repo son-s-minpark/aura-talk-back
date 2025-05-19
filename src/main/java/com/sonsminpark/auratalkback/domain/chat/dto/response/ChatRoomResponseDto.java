@@ -26,6 +26,10 @@ public class ChatRoomResponseDto {
     private LocalDateTime createdAt;
     private LocalDateTime lastMessageAt;
     private boolean isActive;
+    private String roomImageUrl;
+    private boolean isOwner;
+    private String inviteCode;
+    private LocalDateTime inviteCodeExpiredAt;
 
     public static ChatRoomResponseDto from(ChatRoom chatRoom) {
         return ChatRoomResponseDto.builder()
@@ -39,6 +43,15 @@ public class ChatRoomResponseDto {
                 .createdAt(chatRoom.getCreatedAt())
                 .lastMessageAt(chatRoom.getLastMessageAt())
                 .isActive(chatRoom.isActive())
+                .roomImageUrl(chatRoom.getRoomImageUrl())
+                .inviteCode(chatRoom.getInviteCode())
+                .inviteCodeExpiredAt(chatRoom.getInviteCodeExpiredAt())
                 .build();
+    }
+
+    public static ChatRoomResponseDto from(ChatRoom chatRoom, Long currentUserId) {
+        ChatRoomResponseDto dto = from(chatRoom);
+        dto.isOwner = chatRoom.isUserOwner(currentUserId);
+        return dto;
     }
 }

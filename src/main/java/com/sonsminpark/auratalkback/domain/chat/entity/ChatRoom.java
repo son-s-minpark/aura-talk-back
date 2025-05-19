@@ -56,6 +56,9 @@ public class ChatRoom {
     @Column
     private LocalDateTime inviteCodeExpiredAt;
 
+    @Column
+    private String roomImageUrl;
+
     public void addUser(User user) {
         this.users.add(user);
     }
@@ -85,5 +88,17 @@ public class ChatRoom {
         return inviteCode != null &&
                 inviteCodeExpiredAt != null &&
                 inviteCodeExpiredAt.isAfter(LocalDateTime.now());
+    }
+
+    public void updateRoomImage(String imageUrl) {
+        this.roomImageUrl = imageUrl;
+    }
+
+    public boolean isUserOwner(Long userId) {
+        return this.owner != null && this.owner.getId().equals(userId);
+    }
+
+    public void updateOwner(User newOwner) {
+        this.owner = newOwner;
     }
 }

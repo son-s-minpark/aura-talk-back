@@ -46,24 +46,17 @@ public class ChatRoomController {
                 .body(ApiResponse.success("채팅방이 생성되었습니다.", responseDto));
     }
 
-    @GetMapping("/{userId}")
+    @GetMapping
     @Operation(
             summary = "채팅방 목록 조회",
-            description = "사용자가 참여중인 채팅방 목록을 조회합니다.",
+            description = "현재 사용자가 참여중인 채팅방 목록을 조회합니다.",
             security = {@SecurityRequirement(name = "bearerAuth")}
     )
-    public ResponseEntity<ApiResponse<List<ChatRoomResponseDto>>> getChatRoomsByUserId(
-            @RequestHeader("Authorization") String authHeader,
-            @PathVariable Long userId) {
+    public ResponseEntity<ApiResponse<List<ChatRoomResponseDto>>> getChatRooms(
+            @RequestHeader("Authorization") String authHeader) {
 
         String token = authHeader.substring(7);
-        Long tokenUserId = jwtTokenProvider.getUserIdFromToken(token);
-
-        // 본인의 채팅방 목록만 조회 가능
-        if (!tokenUserId.equals(userId)) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body(ApiResponse.error(com.sonsminpark.auratalkback.global.exception.ErrorCode.ACCESS_DENIED));
-        }
+        Long userId = jwtTokenProvider.getUserIdFromToken(token);
 
         List<ChatRoomResponseDto> chatRooms = chatService.getChatRoomsByUserId(userId);
         return ResponseEntity.ok(ApiResponse.success("채팅방 목록 조회 성공", chatRooms));
@@ -124,7 +117,7 @@ public class ChatRoomController {
     @GetMapping("/invitations/pending")
     @Operation(
             summary = "대기중인 초대 조회",
-            description = "사용자에게 온 대기중인 초대 목록을 조회합니다.",
+            description = "현재 사용자에게 온 대기중인 초대 목록을 조회합니다.",
             security = {@SecurityRequirement(name = "bearerAuth")}
     )
     public ResponseEntity<ApiResponse<List<ChatInvitationResponseDto>>> getPendingInvitations(

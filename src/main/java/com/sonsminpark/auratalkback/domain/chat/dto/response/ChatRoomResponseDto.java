@@ -10,7 +10,6 @@ import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Getter
 @NoArgsConstructor
@@ -37,9 +36,7 @@ public class ChatRoomResponseDto {
                 .name(chatRoom.getName())
                 .type(chatRoom.getType())
                 .owner(chatRoom.getOwner() != null ? UserResponseDto.from(chatRoom.getOwner()) : null)
-                .users(chatRoom.getUsers().stream()
-                        .map(UserResponseDto::from)
-                        .collect(Collectors.toList()))
+                .users(List.of())
                 .createdAt(chatRoom.getCreatedAt())
                 .lastMessageAt(chatRoom.getLastMessageAt())
                 .isActive(chatRoom.isActive())
@@ -53,5 +50,9 @@ public class ChatRoomResponseDto {
         ChatRoomResponseDto dto = from(chatRoom);
         dto.isOwner = chatRoom.isUserOwner(currentUserId);
         return dto;
+    }
+
+    public void setUsers(List<UserResponseDto> users) {
+        this.users = users;
     }
 }

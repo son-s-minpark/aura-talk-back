@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -17,4 +18,10 @@ public interface ChatRoomUserRepository extends JpaRepository<ChatRoomUser, Long
     Optional<ChatRoomUser> findUserSettings(@Param("chatRoomId") Long chatRoomId, @Param("userId") Long userId);
 
     void deleteAllByChatRoomId(Long chatRoomId);
+
+    @Query("SELECT cru FROM ChatRoomUser cru JOIN FETCH cru.user WHERE cru.chatRoom.id = :chatRoomId")
+    List<ChatRoomUser> findAllByChatRoomId(@Param("chatRoomId") Long chatRoomId);
+
+    @Query("SELECT COUNT(cru) FROM ChatRoomUser cru WHERE cru.chatRoom.id = :chatRoomId")
+    long countByChatRoomId(@Param("chatRoomId") Long chatRoomId);
 }

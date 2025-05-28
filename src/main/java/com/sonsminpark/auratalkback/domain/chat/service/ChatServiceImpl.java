@@ -127,12 +127,13 @@ public class ChatServiceImpl implements ChatService {
         ChatRoomUser roomUser = chatRoomUserRepository.findByChatRoomIdAndUserId(chatRoomId, userId)
                 .orElseThrow(() -> ChatAccessDeniedException.of("채팅방에 참여하고 있지 않습니다."));
 
-        // 방장이 나가는 경우
+        // 방장이 나가는 경우 채팅방 비활성화
         if (chatRoom.getOwner() != null && chatRoom.getOwner().getId().equals(userId)) {
-            // 채팅방 비활성화
             chatRoom.deactivate();
-            sendSystemMessage(chatRoom, "방장이 나가 채팅방이 비활성화되었습니다.");
+            sendSystemMessage(chatRoom, "방장이 나가서 채팅방이 비활성화되었습니다. 더 이상 메시지를 보낼 수 없습니다.");
+            log.info("채팅방 {}이 방장 {}에 의해 비활성화되었습니다.", chatRoomId, userId);
         } else {
+            // 일반 사용자가 나가는 경우
             sendSystemMessage(chatRoom, user.getNickname() + "님이 채팅방을 나갔습니다.");
         }
 
@@ -152,7 +153,8 @@ public class ChatServiceImpl implements ChatService {
             throw ChatAccessDeniedException.of("채팅방에 참여할 권한이 없습니다.");
         }
 
-        if (!chatRoom.isActive() && !chatRoom.isUserOwner(userId)) {
+        // 비활성화된 채팅방에서는 메시지 전송 불가
+        if (!chatRoom.isActive()) {
             throw ChatAccessDeniedException.of("비활성화된 채팅방에서는 메시지를 보낼 수 없습니다.");
         }
 
@@ -206,6 +208,11 @@ public class ChatServiceImpl implements ChatService {
             throw ChatAccessDeniedException.of("방장만 초대 링크를 생성할 수 있습니다.");
         }
 
+        // 비활성화된 채팅방에서는 초대 링크 생성 불가
+        if (!chatRoom.isActive()) {
+            throw ChatAccessDeniedException.of("비활성화된 채팅방에서는 초대 링크를 생성할 수 없습니다.");
+        }
+
         String inviteCode = UUID.randomUUID().toString();
         LocalDateTime expiresAt = LocalDateTime.now().plusHours(24);
 
@@ -228,6 +235,11 @@ public class ChatServiceImpl implements ChatService {
 
         if (!isUserInChatRoom(chatRoomId, userId)) {
             throw ChatAccessDeniedException.of("채팅방에 참여할 권한이 없습니다.");
+        }
+
+        // 비활성화된 채팅방에서는 초대 불가
+        if (!chatRoom.isActive()) {
+            throw ChatAccessDeniedException.of("비활성화된 채팅방에서는 초대할 수 없습니다.");
         }
 
         User inviter = userRepository.findById(userId)
@@ -289,6 +301,12 @@ public class ChatServiceImpl implements ChatService {
         ChatRoom chatRoom = invitation.getChatRoom();
         User invitee = invitation.getInvitee();
 
+        // 비활성화된 채팅방의 초대는 수락할 수 없음
+        if (!chatRoom.isActive()) {
+            invitation.reject();
+            throw new IllegalStateException("비활성화된 채팅방의 초대는 수락할 수 없습니다.");
+        }
+
         // 이미 채팅방에 참여중인지 확인
         if (isUserInChatRoom(chatRoom.getId(), invitee.getId())) {
             invitation.accept();
@@ -343,7 +361,7 @@ public class ChatServiceImpl implements ChatService {
     @Transactional
     public void acceptInvite(String inviteCode, Long userId) {
         ChatRoom chatRoom = chatRoomRepository.findByInviteCodeAndIsActiveTrue(inviteCode)
-                .orElseThrow(() -> new IllegalArgumentException("유효하지 않은 초대 코드입니다."));
+                .orElseThrow(() -> new IllegalArgumentException("유효하지 않거나 비활성화된 초대 코드입니다."));
 
         if (!chatRoom.isInviteCodeValid()) {
             throw new IllegalArgumentException("만료된 초대 링크입니다.");

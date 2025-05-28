@@ -28,7 +28,7 @@ public class ChatMessageResponseDto {
         return ChatMessageResponseDto.builder()
                 .id(chatMessage.getId())
                 .chatRoomId(chatMessage.getChatRoom().getId())
-                .sender(UserResponseDto.from(chatMessage.getSender()))
+                .sender(chatMessage.getSender() != null ? UserResponseDto.from(chatMessage.getSender()) : null)
                 .content(chatMessage.getContent())
                 .type(chatMessage.getType())
                 .createdAt(chatMessage.getCreatedAt())

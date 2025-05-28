@@ -15,7 +15,7 @@ public interface ChatRoomRepository extends JpaRepository<ChatRoom, Long> {
 
     @Query("SELECT cr FROM ChatRoom cr " +
             "JOIN ChatRoomUser cru ON cr.id = cru.chatRoom.id " +
-            "WHERE cru.user.id = :userId AND cr.isActive = true " +
+            "WHERE cru.user.id = :userId " +
             "ORDER BY cr.lastMessageAt DESC")
     List<ChatRoom> findActiveByUserId(@Param("userId") Long userId);
 

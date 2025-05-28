@@ -18,6 +18,7 @@ import com.sonsminpark.auratalkback.domain.chat.repository.ChatRoomUserRepositor
 import com.sonsminpark.auratalkback.domain.user.entity.User;
 import com.sonsminpark.auratalkback.domain.user.exception.UserNotFoundException;
 import com.sonsminpark.auratalkback.domain.user.repository.UserRepository;
+import com.sonsminpark.auratalkback.domain.user.dto.response.UserResponseDto;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -56,49 +57,60 @@ public class ChatServiceImpl implements ChatService {
                 .isActive(true)
                 .build();
 
-        chatRoom.addUser(owner);
-
-        if (requestDto.getUserIds() != null && !requestDto.getUserIds().isEmpty()) {
-            List<User> invitedUsers = userRepository.findAllById(requestDto.getUserIds());
-            invitedUsers.forEach(chatRoom::addUser);
-        }
-
         ChatRoom savedChatRoom = chatRoomRepository.save(chatRoom);
 
-        ChatRoomUser roomUser = ChatRoomUser.builder()
+        // 방장을 채팅방에 추가
+        ChatRoomUser ownerRoomUser = ChatRoomUser.builder()
                 .chatRoom(savedChatRoom)
                 .user(owner)
                 .notificationEnabled(true)
                 .build();
-        chatRoomUserRepository.save(roomUser);
+        chatRoomUserRepository.save(ownerRoomUser);
 
-        // 사용자가 초대된 경우 초대 메시지 전송
+        // 초대된 사용자들을 채팅방에 추가
         if (requestDto.getUserIds() != null && !requestDto.getUserIds().isEmpty()) {
-            for (Long inviteeId : requestDto.getUserIds()) {
-                User invitee = userRepository.findById(inviteeId)
-                        .orElseThrow(() -> UserNotFoundException.of(inviteeId));
+            List<User> invitedUsers = userRepository.findAllById(requestDto.getUserIds());
 
+            for (User invitedUser : invitedUsers) {
                 ChatInvitation invitation = ChatInvitation.builder()
                         .chatRoom(savedChatRoom)
                         .inviter(owner)
-                        .invitee(invitee)
+                        .invitee(invitedUser)
                         .status(InvitationStatus.PENDING)
                         .build();
                 chatInvitationRepository.save(invitation);
 
-                sendInvitationMessage(savedChatRoom, owner, invitee);
+                sendInvitationMessage(savedChatRoom, owner, invitedUser);
             }
         }
 
-        return ChatRoomResponseDto.from(savedChatRoom, userId);
+        ChatRoomResponseDto responseDto = ChatRoomResponseDto.from(savedChatRoom, userId);
+        List<ChatRoomUser> roomUsers = chatRoomUserRepository.findAllByChatRoomId(savedChatRoom.getId());
+        List<UserResponseDto> users = roomUsers.stream()
+                .map(roomUser -> UserResponseDto.from(roomUser.getUser()))
+                .collect(Collectors.toList());
+        responseDto.setUsers(users);
+
+        return responseDto;
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<ChatRoomResponseDto> getChatRoomsByUserId(Long userId) {
         List<ChatRoom> chatRooms = chatRoomRepository.findActiveByUserId(userId);
+
         return chatRooms.stream()
-                .map(chatRoom -> ChatRoomResponseDto.from(chatRoom, userId))
+                .map(chatRoom -> {
+                    ChatRoomResponseDto dto = ChatRoomResponseDto.from(chatRoom, userId);
+
+                    List<ChatRoomUser> roomUsers = chatRoomUserRepository.findAllByChatRoomId(chatRoom.getId());
+                    List<UserResponseDto> users = roomUsers.stream()
+                            .map(roomUser -> UserResponseDto.from(roomUser.getUser()))
+                            .collect(Collectors.toList());
+
+                    dto.setUsers(users);
+                    return dto;
+                })
                 .collect(Collectors.toList());
     }
 
@@ -111,24 +123,20 @@ public class ChatServiceImpl implements ChatService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> UserNotFoundException.of(userId));
 
-        if (!chatRoom.getUsers().contains(user)) {
-            throw ChatAccessDeniedException.of("채팅방에 참여하고 있지 않습니다.");
-        }
+        // 사용자가 채팅방에 참여하고 있는지 확인
+        ChatRoomUser roomUser = chatRoomUserRepository.findByChatRoomIdAndUserId(chatRoomId, userId)
+                .orElseThrow(() -> ChatAccessDeniedException.of("채팅방에 참여하고 있지 않습니다."));
 
-        // 방장이 나가는 경우, 채팅방 비활성화
+        // 방장이 나가는 경우
         if (chatRoom.getOwner() != null && chatRoom.getOwner().getId().equals(userId)) {
+            // 채팅방 비활성화
             chatRoom.deactivate();
             sendSystemMessage(chatRoom, "방장이 나가 채팅방이 비활성화되었습니다.");
         } else {
-            chatRoom.removeUser(user);
             sendSystemMessage(chatRoom, user.getNickname() + "님이 채팅방을 나갔습니다.");
         }
 
-        ChatRoomUser roomUser = chatRoomUserRepository.findByChatRoomIdAndUserId(chatRoomId, userId)
-                .orElse(null);
-        if (roomUser != null) {
-            chatRoomUserRepository.delete(roomUser);
-        }
+        chatRoomUserRepository.delete(roomUser);
     }
 
     @Override
@@ -140,7 +148,7 @@ public class ChatServiceImpl implements ChatService {
         User sender = userRepository.findById(userId)
                 .orElseThrow(() -> UserNotFoundException.of(userId));
 
-        if (!chatRoomRepository.isUserInChatRoom(chatRoomId, userId)) {
+        if (!isUserInChatRoom(chatRoomId, userId)) {
             throw ChatAccessDeniedException.of("채팅방에 참여할 권한이 없습니다.");
         }
 
@@ -160,7 +168,6 @@ public class ChatServiceImpl implements ChatService {
 
         ChatMessageResponseDto responseDto = ChatMessageResponseDto.from(savedMessage);
 
-        // WebSocket으로 실시간 메시지 전송
         messagingTemplate.convertAndSend("/topic/chatroom/" + chatRoomId, responseDto);
 
         return responseDto;
@@ -169,7 +176,7 @@ public class ChatServiceImpl implements ChatService {
     @Override
     @Transactional(readOnly = true)
     public Page<ChatMessageResponseDto> getMessages(Long chatRoomId, Long userId, Pageable pageable) {
-        if (!chatRoomRepository.isUserInChatRoom(chatRoomId, userId)) {
+        if (!isUserInChatRoom(chatRoomId, userId)) {
             throw ChatAccessDeniedException.of("채팅방에 참여할 권한이 없습니다.");
         }
 
@@ -184,6 +191,9 @@ public class ChatServiceImpl implements ChatService {
                 .orElseThrow(() -> MessageNotFoundException.of(messageId));
 
         message.softDelete();
+
+        ChatMessageResponseDto responseDto = ChatMessageResponseDto.from(message);
+        messagingTemplate.convertAndSend("/topic/chatroom/" + message.getChatRoom().getId(), responseDto);
     }
 
     @Override
@@ -197,8 +207,6 @@ public class ChatServiceImpl implements ChatService {
         }
 
         String inviteCode = UUID.randomUUID().toString();
-
-        // 24시간 유효한 초대 링크 생성
         LocalDateTime expiresAt = LocalDateTime.now().plusHours(24);
 
         chatRoom.generateInviteCode(inviteCode, expiresAt);
@@ -218,7 +226,7 @@ public class ChatServiceImpl implements ChatService {
         ChatRoom chatRoom = chatRoomRepository.findById(chatRoomId)
                 .orElseThrow(() -> ChatRoomNotFoundException.of(chatRoomId));
 
-        if (!chatRoomRepository.isUserInChatRoom(chatRoomId, userId)) {
+        if (!isUserInChatRoom(chatRoomId, userId)) {
             throw ChatAccessDeniedException.of("채팅방에 참여할 권한이 없습니다.");
         }
 
@@ -228,7 +236,7 @@ public class ChatServiceImpl implements ChatService {
         User invitee = userRepository.findById(requestDto.getUserId())
                 .orElseThrow(() -> UserNotFoundException.of(requestDto.getUserId()));
 
-        if (chatRoom.getUsers().contains(invitee)) {
+        if (isUserInChatRoom(chatRoomId, invitee.getId())) {
             throw new IllegalStateException("이미 채팅방에 참여중인 사용자입니다.");
         }
 
@@ -282,13 +290,12 @@ public class ChatServiceImpl implements ChatService {
         User invitee = invitation.getInvitee();
 
         // 이미 채팅방에 참여중인지 확인
-        if (chatRoom.getUsers().contains(invitee)) {
+        if (isUserInChatRoom(chatRoom.getId(), invitee.getId())) {
             invitation.accept();
             throw new IllegalStateException("이미 채팅방에 참여중입니다.");
         }
 
         invitation.accept();
-        chatRoom.addUser(invitee);
 
         ChatRoomUser roomUser = ChatRoomUser.builder()
                 .chatRoom(chatRoom)
@@ -345,11 +352,9 @@ public class ChatServiceImpl implements ChatService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> UserNotFoundException.of(userId));
 
-        if (chatRoom.getUsers().contains(user)) {
+        if (isUserInChatRoom(chatRoom.getId(), user.getId())) {
             throw new IllegalStateException("이미 채팅방에 참여중입니다.");
         }
-
-        chatRoom.addUser(user);
 
         ChatRoomUser roomUser = ChatRoomUser.builder()
                 .chatRoom(chatRoom)
@@ -376,6 +381,10 @@ public class ChatServiceImpl implements ChatService {
         roomUser.updateNotificationSetting(enabled);
     }
 
+    private boolean isUserInChatRoom(Long chatRoomId, Long userId) {
+        return chatRoomUserRepository.findByChatRoomIdAndUserId(chatRoomId, userId).isPresent();
+    }
+
     // 시스템 메시지 전송
     private void sendSystemMessage(ChatRoom chatRoom, String content) {
         ChatMessage systemMessage = ChatMessage.builder()
@@ -386,6 +395,7 @@ public class ChatServiceImpl implements ChatService {
                 .build();
 
         ChatMessage savedMessage = chatMessageRepository.save(systemMessage);
+        chatRoom.updateLastMessageAt();
 
         ChatMessageResponseDto responseDto = ChatMessageResponseDto.from(savedMessage);
         messagingTemplate.convertAndSend("/topic/chatroom/" + chatRoom.getId(), responseDto);
@@ -399,11 +409,11 @@ public class ChatServiceImpl implements ChatService {
 
     // 개인 메시지 전송
     private void sendDirectMessage(User user, String content) {
-        // TODO: 개인 메시지 알림
         messagingTemplate.convertAndSendToUser(
                 user.getId().toString(),
                 "/queue/notifications",
                 content
         );
+        log.info("Direct message sent to user {}: {}", user.getId(), content);
     }
 }

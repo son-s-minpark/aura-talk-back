@@ -11,6 +11,7 @@ import org.springframework.http.HttpStatus;
  *   - 420~429: 사용자 관련 에러
  *   - 430~439: 친구 관련 에러
  *   - 440~449: 채팅 관련 에러
+ *   - 450~459: 초대 관련 에러
  * - 5xx: 서버 에러
  *   - 500~509: 일반적인 서버 에러
  *   - 510~519: 데이터베이스 관련 에러
@@ -24,6 +25,7 @@ public enum ErrorCode {
     MISSING_REQUEST_PARAMETER(HttpStatus.BAD_REQUEST, 403, "필수 요청 파라미터가 누락되었습니다."),
     ENTITY_NOT_FOUND(HttpStatus.NOT_FOUND, 404, "엔티티를 찾을 수 없습니다."),
     UNSUPPORTED_MEDIA_TYPE(HttpStatus.UNSUPPORTED_MEDIA_TYPE, 405, "지원하지 않는 미디어 타입입니다."),
+    INVALID_REQUEST_STATE(HttpStatus.BAD_REQUEST, 406, "요청을 처리할 수 없는 상태입니다."),
 
     UNAUTHORIZED(HttpStatus.UNAUTHORIZED, 410, "인증이 필요합니다."),
     INVALID_AUTH_TOKEN(HttpStatus.UNAUTHORIZED, 411, "잘못된 인증 토큰입니다."),
@@ -44,6 +46,16 @@ public enum ErrorCode {
     CHATROOM_NOT_FOUND(HttpStatus.NOT_FOUND, 440, "채팅방을 찾을 수 없습니다."),
     CHAT_ACCESS_DENIED(HttpStatus.FORBIDDEN, 441, "채팅방에 접근할 권한이 없습니다."),
     CHAT_MESSAGE_NOT_FOUND(HttpStatus.NOT_FOUND, 442, "채팅 메시지를 찾을 수 없습니다."),
+    CHATROOM_INACTIVE(HttpStatus.BAD_REQUEST, 443, "비활성화된 채팅방입니다."),
+    ALREADY_CHATROOM_MEMBER(HttpStatus.CONFLICT, 444, "이미 채팅방에 참여중입니다."),
+    NOT_CHATROOM_MEMBER(HttpStatus.FORBIDDEN, 445, "채팅방에 참여하고 있지 않습니다."),
+    OWNER_PERMISSION_REQUIRED(HttpStatus.FORBIDDEN, 446, "방장만 수행할 수 있는 작업입니다."),
+
+    INVITATION_NOT_FOUND(HttpStatus.NOT_FOUND, 450, "초대를 찾을 수 없습니다."),
+    INVITATION_ALREADY_PROCESSED(HttpStatus.BAD_REQUEST, 451, "이미 처리된 초대입니다."),
+    DUPLICATE_INVITATION(HttpStatus.CONFLICT, 452, "이미 초대를 보냈습니다."),
+    EXPIRED_INVITATION(HttpStatus.BAD_REQUEST, 453, "만료된 초대입니다."),
+    INVALID_INVITE_CODE(HttpStatus.NOT_FOUND, 454, "유효하지 않은 초대 코드입니다."),
 
     INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, 500, "서버 오류가 발생했습니다."),
     SERVICE_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, 501, "서비스를 사용할 수 없습니다."),

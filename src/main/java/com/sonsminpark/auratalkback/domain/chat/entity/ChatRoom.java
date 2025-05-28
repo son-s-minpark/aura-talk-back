@@ -6,8 +6,6 @@ import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
-import java.util.HashSet;
-import java.util.Set;
 
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -32,15 +30,6 @@ public class ChatRoom {
     @JoinColumn(name = "owner_id")
     private User owner;
 
-    @ManyToMany
-    @JoinTable(
-            name = "chatroom_users",
-            joinColumns = @JoinColumn(name = "chatroom_id"),
-            inverseJoinColumns = @JoinColumn(name = "user_id")
-    )
-    @Builder.Default
-    private Set<User> users = new HashSet<>();
-
     @Column(nullable = false)
     @Builder.Default
     private boolean isActive = true;
@@ -58,14 +47,6 @@ public class ChatRoom {
 
     @Column
     private String roomImageUrl;
-
-    public void addUser(User user) {
-        this.users.add(user);
-    }
-
-    public void removeUser(User user) {
-        this.users.remove(user);
-    }
 
     public void updateName(String name) {
         this.name = name;

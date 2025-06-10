@@ -2,7 +2,6 @@ package com.sonsminpark.auratalkback.domain.chat.dto.response;
 
 import com.sonsminpark.auratalkback.domain.chat.entity.ChatRoom;
 import com.sonsminpark.auratalkback.domain.chat.entity.ChatRoomType;
-import com.sonsminpark.auratalkback.domain.user.dto.response.UserResponseDto;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -20,8 +19,8 @@ public class ChatRoomResponseDto {
     private Long id;
     private String name;
     private ChatRoomType type;
-    private UserResponseDto owner;
-    private List<UserResponseDto> users;
+    private ChatUserResponseDto owner;
+    private List<ChatUserResponseDto> users;
     private LocalDateTime createdAt;
     private LocalDateTime lastMessageAt;
     private boolean isActive;
@@ -35,7 +34,7 @@ public class ChatRoomResponseDto {
                 .id(chatRoom.getId())
                 .name(chatRoom.getName())
                 .type(chatRoom.getType())
-                .owner(chatRoom.getOwner() != null ? UserResponseDto.from(chatRoom.getOwner()) : null)
+                .owner(chatRoom.getOwner() != null ? ChatUserResponseDto.from(chatRoom.getOwner()) : null)
                 .users(List.of())
                 .createdAt(chatRoom.getCreatedAt())
                 .lastMessageAt(chatRoom.getLastMessageAt())
@@ -52,7 +51,13 @@ public class ChatRoomResponseDto {
         return dto;
     }
 
-    public void setUsers(List<UserResponseDto> users) {
+    public void setUsers(List<ChatUserResponseDto> users) {
         this.users = users;
+    }
+
+    public void setOwnerThumbnailUrl(String thumbnailImageUrl) {
+        if (this.owner != null) {
+            this.owner.setThumbnailImageUrl(thumbnailImageUrl);
+        }
     }
 }

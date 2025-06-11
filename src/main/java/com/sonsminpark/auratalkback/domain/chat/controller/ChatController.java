@@ -27,7 +27,8 @@ public class ChatController {
     private final ChatService chatService;
     private final JwtTokenProvider jwtTokenProvider;
 
-    @PostMapping("/{chatroomId}")
+    // 웹소켓으로 채팅 전송
+    /*@PostMapping("/{chatroomId}")
     @Operation(
             summary = "채팅 내용 전송",
             description = "채팅방에 메시지를 전송합니다.",
@@ -44,7 +45,7 @@ public class ChatController {
         ChatMessageResponseDto responseDto = chatService.sendMessage(chatroomId, requestDto, userId);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success("메시지가 전송되었습니다.", responseDto));
-    }
+    }*/
 
     @GetMapping("/{chatroomId}")
     @Operation(

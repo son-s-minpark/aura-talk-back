@@ -35,7 +35,6 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional
     public LoginResponseDto login(LoginRequestDto loginRequestDto) {
-
         User user = userRepository.findByEmailAndIsDeletedFalse(loginRequestDto.getEmail())
                 .orElseThrow(() -> UserNotFoundException.of(loginRequestDto.getEmail(), "존재하지 않는 사용자입니다."));
 
@@ -46,7 +45,8 @@ public class UserServiceImpl implements UserService {
         // 로그인 시 ONLINE으로 변경
         user.updateStatus(UserStatus.ONLINE);
 
-        String token = jwtTokenProvider.createToken(user.getEmail());
+        // userId를 포함하여 토큰 생성
+        String token = jwtTokenProvider.createToken(user.getEmail(), user.getId());
 
         UserResponseDto userResponseDto = UserResponseDto.from(user);
 
@@ -102,17 +102,18 @@ public class UserServiceImpl implements UserService {
 //        String verificationToken = emailService.generateVerificationToken(savedUser.getEmail());
 //        emailService.sendVerificationEmail(savedUser.getEmail(), verificationToken);
 
-        String token = jwtTokenProvider.createToken(savedUser.getEmail());
+        // 토큰에 userId 추가
+        String token = jwtTokenProvider.createToken(savedUser.getEmail(), savedUser.getId());
 
         return SignUpResponseDto.builder()
-                .userId(savedUser.getId())
                 .token(token)
                 .build();
     }
 
     @Override
     @Transactional
-    public void deleteUser(Long userId, UserDeleteRequestDto userDeleteRequestDto) {
+    public void deleteUser(String token, UserDeleteRequestDto userDeleteRequestDto) {
+        Long userId = jwtTokenProvider.getUserIdFromToken(token);
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> UserNotFoundException.of(userId));
 
@@ -128,9 +129,6 @@ public class UserServiceImpl implements UserService {
         user.delete();
 
         // 인증 토큰 관련 처리
-        String email = user.getEmail();
-        String token = jwtTokenProvider.createToken(email);
-        long validityInMilliseconds = jwtTokenProvider.getTokenValidityInMilliseconds();
         tokenBlacklistService.addToBlacklist(token, jwtTokenProvider.getTokenValidityInMilliseconds());
 
         // 사용자 삭제 예약 (30일 후)
@@ -146,7 +144,8 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
-    public void setupProfile(Long userId, ProfileSetupRequestDto profileSetupRequestDto) {
+    public void setupProfile(String token, ProfileSetupRequestDto profileSetupRequestDto) {
+        Long userId = jwtTokenProvider.getUserIdFromToken(token);
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> UserNotFoundException.of(userId));
 
@@ -207,7 +206,8 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional(readOnly = true)
-    public UserResponseDto getUserProfile(Long userId) {
+    public UserResponseDto getUserProfile(String token) {
+        Long userId = jwtTokenProvider.getUserIdFromToken(token);
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> UserNotFoundException.of(userId));
 
@@ -220,7 +220,8 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
-    public void updateChatSettings(Long userId, boolean randomChatEnabled) {
+    public void updateChatSettings(String token, boolean randomChatEnabled) {
+        Long userId = jwtTokenProvider.getUserIdFromToken(token);
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> UserNotFoundException.of(userId));
 

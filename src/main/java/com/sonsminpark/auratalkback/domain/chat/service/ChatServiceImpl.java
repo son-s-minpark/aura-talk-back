@@ -1,0 +1,434 @@
+package com.sonsminpark.auratalkback.domain.chat.service;
+
+import com.sonsminpark.auratalkback.domain.chat.dto.request.ChatInviteRequestDto;
+import com.sonsminpark.auratalkback.domain.chat.dto.request.ChatMessageRequestDto;
+import com.sonsminpark.auratalkback.domain.chat.dto.request.ChatRoomCreateRequestDto;
+import com.sonsminpark.auratalkback.domain.chat.dto.response.*;
+import com.sonsminpark.auratalkback.domain.chat.entity.*;
+import com.sonsminpark.auratalkback.domain.chat.exception.*;
+import com.sonsminpark.auratalkback.domain.chat.repository.ChatInvitationRepository;
+import com.sonsminpark.auratalkback.domain.chat.repository.ChatMessageRepository;
+import com.sonsminpark.auratalkback.domain.chat.repository.ChatRoomRepository;
+import com.sonsminpark.auratalkback.domain.chat.repository.ChatRoomUserRepository;
+import com.sonsminpark.auratalkback.domain.user.entity.User;
+import com.sonsminpark.auratalkback.domain.user.exception.UserNotFoundException;
+import com.sonsminpark.auratalkback.domain.user.repository.UserRepository;
+import com.sonsminpark.auratalkback.domain.user.service.UserProfileImageService;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.UUID;
+import java.util.stream.Collectors;
+
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class ChatServiceImpl implements ChatService {
+
+    private final ChatRoomRepository chatRoomRepository;
+    private final ChatMessageRepository chatMessageRepository;
+    private final ChatRoomUserRepository chatRoomUserRepository;
+    private final ChatInvitationRepository chatInvitationRepository;
+    private final UserRepository userRepository;
+    private final SimpMessagingTemplate messagingTemplate;
+    private final UserProfileImageService userProfileImageService;
+
+    @Override
+    @Transactional
+    public ChatRoomResponseDto createChatRoom(ChatRoomCreateRequestDto requestDto, Long userId) {
+        User owner = findUserById(userId);
+
+        ChatRoom chatRoom = ChatRoom.builder()
+                .name(requestDto.getName())
+                .type(ChatRoomType.GROUP)
+                .owner(owner)
+                .isActive(true)
+                .build();
+
+        ChatRoom savedChatRoom = chatRoomRepository.save(chatRoom);
+
+        // 방장을 채팅방에 추가
+        addUserToChatRoom(savedChatRoom, owner);
+
+        log.info("채팅방 생성 완료 - ID: {}, 방장: {}", savedChatRoom.getId(), userId);
+        return buildChatRoomResponse(savedChatRoom, userId);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ChatRoomResponseDto> getChatRoomsByUserId(Long userId) {
+        validateUserExists(userId);
+
+        List<ChatRoom> chatRooms = chatRoomRepository.findActiveByUserId(userId);
+
+        return chatRooms.stream()
+                .map(chatRoom -> buildChatRoomResponse(chatRoom, userId))
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional
+    public void leaveChatRoom(Long chatRoomId, Long userId) {
+        ChatRoom chatRoom = findChatRoomById(chatRoomId);
+        User user = findUserById(userId);
+
+        ChatRoomUser roomUser = findChatRoomUser(chatRoomId, userId);
+
+        if (chatRoom.isUserOwner(userId)) {
+            handleOwnerLeaving(chatRoom);
+        } else {
+            sendSystemMessage(chatRoom, user.getNickname() + "님이 채팅방을 나갔습니다.");
+        }
+
+        chatRoomUserRepository.delete(roomUser);
+        log.info("사용자 {}가 채팅방 {}을 나갔습니다.", userId, chatRoomId);
+    }
+
+    @Override
+    @Transactional
+    public ChatMessageResponseDto sendMessage(Long chatRoomId, ChatMessageRequestDto requestDto, Long userId) {
+        ChatRoom chatRoom = findChatRoomById(chatRoomId);
+        User sender = findUserById(userId);
+
+        validateChatRoomAccess(chatRoomId, userId);
+        validateChatRoomActive(chatRoom);
+
+        ChatMessage message = ChatMessage.builder()
+                .chatRoom(chatRoom)
+                .sender(sender)
+                .content(requestDto.getContent())
+                .type(requestDto.getType())
+                .build();
+
+        ChatMessage savedMessage = chatMessageRepository.save(message);
+        chatRoom.updateLastMessageAt();
+
+        String senderThumbnailUrl = null;
+        try {
+            senderThumbnailUrl = userProfileImageService.getProfileImage(sender.getId()).getThumbnailImageUrl();
+        } catch (Exception e) {
+            log.warn("프로필 이미지 조회 실패 - 사용자: {}, 오류: {}", sender.getId(), e.getMessage());
+        }
+
+        ChatMessageResponseDto responseDto = ChatMessageResponseDto.from(savedMessage, senderThumbnailUrl);
+
+        messagingTemplate.convertAndSend("/topic/chatroom/" + chatRoomId, responseDto);
+
+        return responseDto;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<ChatMessageResponseDto> getMessages(Long chatRoomId, Long userId, Pageable pageable) {
+        validateChatRoomAccess(chatRoomId, userId);
+
+        Page<ChatMessage> messages = chatMessageRepository.findByChatRoomId(chatRoomId, pageable);
+
+        return messages.map(message -> {
+            String senderThumbnailUrl = null;
+            if (message.getSender() != null) {
+                try {
+                    senderThumbnailUrl = userProfileImageService.getProfileImage(message.getSender().getId()).getThumbnailImageUrl();
+                } catch (Exception e) {
+                    log.warn("프로필 이미지 조회 실패 - 사용자: {}, 오류: {}", message.getSender().getId(), e.getMessage());
+                }
+            }
+            return ChatMessageResponseDto.from(message, senderThumbnailUrl);
+        });
+    }
+
+    @Override
+    @Transactional
+    public void deleteMessage(Long messageId, Long userId) {
+        ChatMessage message = chatMessageRepository.findByIdAndSenderId(messageId, userId)
+                .orElseThrow(() -> MessageNotFoundException.of(messageId));
+
+        message.softDelete();
+
+        String senderThumbnailUrl = null;
+        if (message.getSender() != null) {
+            try {
+                senderThumbnailUrl = userProfileImageService.getProfileImage(message.getSender().getId()).getThumbnailImageUrl();
+            } catch (Exception e) {
+                log.warn("프로필 이미지 조회 실패 - 사용자: {}, 오류: {}", message.getSender().getId(), e.getMessage());
+            }
+        }
+
+        ChatMessageResponseDto responseDto = ChatMessageResponseDto.from(message, senderThumbnailUrl);
+        messagingTemplate.convertAndSend("/topic/chatroom/" + message.getChatRoom().getId(), responseDto);
+
+        log.info("사용자 {}가 메시지 {}를 삭제했습니다.", userId, messageId);
+    }
+
+    @Override
+    @Transactional
+    public ChatInviteResponseDto createInviteLink(Long chatRoomId, Long userId) {
+        ChatRoom chatRoom = findChatRoomById(chatRoomId);
+
+        validateOwnerPermission(chatRoom, userId);
+        validateChatRoomActive(chatRoom);
+
+        String inviteCode = UUID.randomUUID().toString();
+        LocalDateTime expiresAt = LocalDateTime.now().plusHours(24);
+
+        chatRoom.generateInviteCode(inviteCode, expiresAt);
+
+        String inviteLink = "https://auratalk.com/invite/" + inviteCode;
+
+        log.info("채팅방 {} 초대 링크가 생성되었습니다. (만료: {})", chatRoomId, expiresAt);
+
+        return ChatInviteResponseDto.builder()
+                .inviteCode(inviteCode)
+                .inviteLink(inviteLink)
+                .expiresAt(expiresAt)
+                .build();
+    }
+
+    @Override
+    @Transactional
+    public ChatInviteResponseDto sendInviteToFriend(Long chatRoomId, ChatInviteRequestDto requestDto, Long userId) {
+        ChatRoom chatRoom = findChatRoomById(chatRoomId);
+        User inviter = findUserById(userId);
+        User invitee = findUserById(requestDto.getUserId());
+
+        validateChatRoomAccess(chatRoomId, userId);
+        validateChatRoomActive(chatRoom);
+
+        // 이미 참여중인 사용자 확인
+        if (isUserInChatRoom(chatRoomId, invitee.getId())) {
+            throw InvalidChatRoomStateException.alreadyMember();
+        }
+
+        ChatInviteResponseDto inviteResponse;
+        if (chatRoom.isInviteCodeValid()) {
+            inviteResponse = ChatInviteResponseDto.builder()
+                    .inviteCode(chatRoom.getInviteCode())
+                    .inviteLink("https://auratalk.com/invite/" + chatRoom.getInviteCode())
+                    .expiresAt(chatRoom.getInviteCodeExpiredAt())
+                    .build();
+        } else {
+            String inviteCode = UUID.randomUUID().toString();
+            LocalDateTime expiresAt = LocalDateTime.now().plusHours(24);
+
+            chatRoom.generateInviteCode(inviteCode, expiresAt);
+
+            inviteResponse = ChatInviteResponseDto.builder()
+                    .inviteCode(inviteCode)
+                    .inviteLink("https://auratalk.com/invite/" + inviteCode)
+                    .expiresAt(expiresAt)
+                    .build();
+        }
+
+        String inviteMessage = inviter.getNickname() + "님이 '" + chatRoom.getName() + "' 채팅방에 초대했습니다.\n" +
+                "링크: " + inviteResponse.getInviteLink();
+        sendDirectMessage(invitee, inviteMessage);
+
+        log.info("사용자 {}가 사용자 {}에게 채팅방 {} 초대 링크를 전송했습니다.", userId, requestDto.getUserId(), chatRoomId);
+
+        return inviteResponse;
+    }
+
+    @Override
+    @Transactional
+    public void acceptInvite(String inviteCode, Long userId) {
+        ChatRoom chatRoom = chatRoomRepository.findByInviteCodeAndIsActiveTrue(inviteCode)
+                .orElseThrow(() -> ChatInvitationException.invalidInviteCode());
+
+        if (!chatRoom.isInviteCodeValid()) {
+            throw ChatInvitationException.expiredInvite();
+        }
+
+        User user = findUserById(userId);
+
+        if (isUserInChatRoom(chatRoom.getId(), user.getId())) {
+            throw InvalidChatRoomStateException.alreadyMember();
+        }
+
+        addUserToChatRoom(chatRoom, user);
+        sendSystemMessage(chatRoom, user.getNickname() + "님이 초대 링크를 통해 입장했습니다.");
+
+        log.info("사용자 {}가 초대 링크를 통해 채팅방 {}에 입장했습니다.", userId, chatRoom.getId());
+    }
+
+    @Override
+    @Transactional
+    public void updateNotificationSettings(Long chatRoomId, Long userId, boolean enabled) {
+        ChatRoomUser roomUser = findChatRoomUser(chatRoomId, userId);
+        roomUser.updateNotificationSetting(enabled);
+
+        log.info("사용자 {}의 채팅방 {} 알림 설정이 {}로 변경되었습니다.", userId, chatRoomId, enabled ? "활성화" : "비활성화");
+    }
+
+    @Override
+    @Deprecated
+    @Transactional(readOnly = true)
+    public List<ChatInvitationResponseDto> getPendingInvitations(Long userId) {
+        log.debug("Deprecated 메소드 호출 - getPendingInvitations. 사용자: {}", userId);
+        return List.of();
+    }
+
+    @Override
+    @Deprecated
+    @Transactional
+    public void acceptInvitation(Long invitationId, Long userId) {
+        log.warn("Deprecated 메소드 호출 - acceptInvitation. 사용자: {}, 초대 ID: {}", userId, invitationId);
+        throw new UnsupportedOperationException("이 기능은 더 이상 지원되지 않습니다. 초대 링크 방식으로 변경되었습니다.");
+    }
+
+    @Override
+    @Deprecated
+    @Transactional
+    public void rejectInvitation(Long invitationId, Long userId) {
+        log.warn("Deprecated 메소드 호출 - rejectInvitation. 사용자: {}, 초대 ID: {}", userId, invitationId);
+        throw new UnsupportedOperationException("이 기능은 더 이상 지원되지 않습니다.");
+    }
+
+    @Override
+    @Deprecated
+    @Transactional
+    public void rejectInvite(String inviteCode, Long userId) {
+        log.warn("Deprecated 메소드 호출 - rejectInvite. 사용자: {}, 초대 코드: {}", userId, inviteCode);
+        throw new UnsupportedOperationException("이 기능은 더 이상 지원되지 않습니다.");
+    }
+
+    @Override
+    @Deprecated
+    @Transactional
+    public ChatInvitationResponseDto inviteUser(Long chatRoomId, ChatInviteRequestDto requestDto, Long userId) {
+        log.warn("Deprecated 메소드 호출 - inviteUser. sendInviteToFriend 사용을 권장합니다.");
+
+        sendInviteToFriend(chatRoomId, requestDto, userId);
+
+        User inviter = findUserById(userId);
+        User invitee = findUserById(requestDto.getUserId());
+        ChatRoom chatRoom = findChatRoomById(chatRoomId);
+
+        return ChatInvitationResponseDto.builder()
+                .id(-1L)
+                .chatRoomId(chatRoomId)
+                .chatRoomName(chatRoom.getName())
+                .inviter(ChatUserResponseDto.from(inviter))
+                .invitee(ChatUserResponseDto.from(invitee))
+                .status(InvitationStatus.PENDING)
+                .createdAt(LocalDateTime.now())
+                .build();
+    }
+
+    private User findUserById(Long userId) {
+        return userRepository.findByIdAndIsDeletedFalse(userId)
+                .orElseThrow(() -> UserNotFoundException.of(userId));
+    }
+
+    private ChatRoom findChatRoomById(Long chatRoomId) {
+        return chatRoomRepository.findById(chatRoomId)
+                .orElseThrow(() -> ChatRoomNotFoundException.of(chatRoomId));
+    }
+
+    private ChatRoomUser findChatRoomUser(Long chatRoomId, Long userId) {
+        return chatRoomUserRepository.findByChatRoomIdAndUserId(chatRoomId, userId)
+                .orElseThrow(() -> InvalidChatRoomStateException.notMember());
+    }
+
+    private void validateUserExists(Long userId) {
+        if (!userRepository.existsById(userId)) {
+            throw UserNotFoundException.of(userId);
+        }
+    }
+
+    private void validateChatRoomActive(ChatRoom chatRoom) {
+        if (!chatRoom.isActive()) {
+            throw InvalidChatRoomStateException.deactivated();
+        }
+    }
+
+    private void validateChatRoomAccess(Long chatRoomId, Long userId) {
+        if (!isUserInChatRoom(chatRoomId, userId)) {
+            throw ChatAccessDeniedException.of("채팅방에 참여할 권한이 없습니다.");
+        }
+    }
+
+    private void validateOwnerPermission(ChatRoom chatRoom, Long userId) {
+        if (!chatRoom.isUserOwner(userId)) {
+            throw InvalidChatRoomStateException.ownerRequired();
+        }
+    }
+
+    private boolean isUserInChatRoom(Long chatRoomId, Long userId) {
+        return chatRoomUserRepository.findByChatRoomIdAndUserId(chatRoomId, userId).isPresent();
+    }
+
+    private void addUserToChatRoom(ChatRoom chatRoom, User user) {
+        ChatRoomUser roomUser = ChatRoomUser.builder()
+                .chatRoom(chatRoom)
+                .user(user)
+                .notificationEnabled(true)
+                .build();
+        chatRoomUserRepository.save(roomUser);
+    }
+
+    private ChatRoomResponseDto buildChatRoomResponse(ChatRoom chatRoom, Long currentUserId) {
+        ChatRoomResponseDto dto = ChatRoomResponseDto.from(chatRoom, currentUserId);
+
+        List<ChatRoomUser> roomUsers = chatRoomUserRepository.findAllByChatRoomId(chatRoom.getId());
+        List<ChatUserResponseDto> users = roomUsers.stream()
+                .map(roomUser -> {
+                    String thumbnailUrl = null;
+                    try {
+                        thumbnailUrl = userProfileImageService.getProfileImage(roomUser.getUser().getId()).getThumbnailImageUrl();
+                    } catch (Exception e) {
+                        log.warn("프로필 이미지 조회 실패 - 사용자: {}, 오류: {}", roomUser.getUser().getId(), e.getMessage());
+                    }
+                    return ChatUserResponseDto.from(roomUser.getUser(), thumbnailUrl);
+                })
+                .collect(Collectors.toList());
+
+        dto.setUsers(users);
+
+        if (chatRoom.getOwner() != null) {
+            try {
+                String ownerThumbnailUrl = userProfileImageService.getProfileImage(chatRoom.getOwner().getId()).getThumbnailImageUrl();
+                dto.setOwnerThumbnailUrl(ownerThumbnailUrl);
+            } catch (Exception e) {
+                log.warn("방장 프로필 이미지 조회 실패 - 사용자: {}, 오류: {}", chatRoom.getOwner().getId(), e.getMessage());
+            }
+        }
+
+        return dto;
+    }
+
+    private void handleOwnerLeaving(ChatRoom chatRoom) {
+        chatRoom.deactivate();
+        sendSystemMessage(chatRoom, "방장이 나가서 채팅방이 비활성화되었습니다. 더 이상 메시지를 보낼 수 없습니다.");
+        log.info("채팅방 {}이 방장에 의해 비활성화되었습니다.", chatRoom.getId());
+    }
+
+    private void sendSystemMessage(ChatRoom chatRoom, String content) {
+        ChatMessage systemMessage = ChatMessage.builder()
+                .chatRoom(chatRoom)
+                .sender(null)
+                .content(content)
+                .type(MessageType.SYSTEM)
+                .build();
+
+        ChatMessage savedMessage = chatMessageRepository.save(systemMessage);
+        chatRoom.updateLastMessageAt();
+
+        ChatMessageResponseDto responseDto = ChatMessageResponseDto.from(savedMessage);
+        messagingTemplate.convertAndSend("/topic/chatroom/" + chatRoom.getId(), responseDto);
+    }
+
+    private void sendDirectMessage(User user, String content) {
+        messagingTemplate.convertAndSendToUser(
+                user.getId().toString(),
+                "/queue/notifications",
+                content
+        );
+    }
+}

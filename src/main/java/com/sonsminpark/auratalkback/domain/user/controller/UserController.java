@@ -51,29 +51,31 @@ public class UserController {
                 .body(ApiResponse.success("회원가입이 성공적으로 완료되었습니다.", signUpResponseDto));
     }
 
-    @DeleteMapping("/{userId}")
+    @DeleteMapping
     @Operation(
             summary = "회원탈퇴",
             description = "회원 탈퇴 처리를 합니다. 30일간 정보를 보관 후 삭제됩니다.",
             security = { @SecurityRequirement(name = "bearerAuth") }
     )
     public ResponseEntity<ApiResponse<Void>> deleteUser(
-            @PathVariable Long userId,
+            @RequestHeader("Authorization") String authHeader,
             @Valid @RequestBody UserDeleteRequestDto userDeleteRequestDto) {
-        userService.deleteUser(userId, userDeleteRequestDto);
+        String token = authHeader.substring(7);
+        userService.deleteUser(token, userDeleteRequestDto);
         return ResponseEntity.ok(ApiResponse.success("회원탈퇴가 성공적으로 처리되었습니다. 30일 이내 재가입 시 계정을 복구할 수 있습니다."));
     }
 
-    @PutMapping("/{userId}/profile")
+    @PutMapping("/profile")
     @Operation(
             summary = "프로필 설정",
             description = "회원가입 후 사용자 프로필 정보를 설정합니다.",
             security = { @SecurityRequirement(name = "bearerAuth") }
     )
     public ResponseEntity<ApiResponse<Void>> setupProfile(
-            @PathVariable Long userId,
+            @RequestHeader("Authorization") String authHeader,
             @Valid @RequestBody ProfileSetupRequestDto profileSetupRequestDto) {
-        userService.setupProfile(userId, profileSetupRequestDto);
+        String token = authHeader.substring(7);
+        userService.setupProfile(token, profileSetupRequestDto);
         return ResponseEntity.ok(ApiResponse.success("프로필 설정이 완료되었습니다."));
     }
 
@@ -97,27 +99,30 @@ public class UserController {
         return ResponseEntity.ok(ApiResponse.success("인증 이메일이 재전송되었습니다."));
     }
 
-    @GetMapping("/{userId}")
+    @GetMapping("/profile")
     @Operation(
             summary = "프로필 조회",
             description = "사용자 프로필 정보를 조회합니다.",
             security = { @SecurityRequirement(name = "bearerAuth") }
     )
-    public ResponseEntity<ApiResponse<UserResponseDto>> getUserProfile(@PathVariable Long userId) {
-        UserResponseDto userResponseDto = userService.getUserProfile(userId);
+    public ResponseEntity<ApiResponse<UserResponseDto>> getUserProfile(
+            @RequestHeader("Authorization") String authHeader) {
+        String token = authHeader.substring(7);
+        UserResponseDto userResponseDto = userService.getUserProfile(token);
         return ResponseEntity.ok(ApiResponse.success("프로필 조회에 성공했습니다.", userResponseDto));
     }
 
-    @PutMapping("/{userId}/chat-settings")
+    @PutMapping("/chat-settings")
     @Operation(
             summary = "랜덤 채팅 설정",
             description = "랜덤 채팅 매칭 활성화/비활성화 설정을 변경합니다.",
             security = { @SecurityRequirement(name = "bearerAuth") }
     )
     public ResponseEntity<ApiResponse<Void>> updateChatSettings(
-            @PathVariable Long userId,
+            @RequestHeader("Authorization") String authHeader,
             @Valid @RequestBody ChatSettingsRequestDto chatSettingsRequestDto) {
-        userService.updateChatSettings(userId, chatSettingsRequestDto.isRandomChatEnabled());
+        String token = authHeader.substring(7);
+        userService.updateChatSettings(token, chatSettingsRequestDto.isRandomChatEnabled());
         return ResponseEntity.ok(ApiResponse.success("랜덤 채팅 설정이 변경되었습니다."));
     }
 }

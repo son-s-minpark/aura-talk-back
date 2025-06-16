@@ -1,6 +1,6 @@
 package com.sonsminpark.auratalkback.domain.interest.dto.response;
 
-import com.sonsminpark.auratalkback.domain.user.dto.response.UserResponseDto;
+import com.sonsminpark.auratalkback.domain.user.dto.response.MyProfileResponseDto;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -14,5 +14,5 @@ import java.util.List;
 @Builder
 public class InterestUsersResponseDto {
     private String interestName;
-    private List<UserResponseDto> users;
+    private List<MyProfileResponseDto> users;
 }

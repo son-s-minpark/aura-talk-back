@@ -5,7 +5,7 @@ import com.sonsminpark.auratalkback.domain.interest.dto.response.InterestRespons
 import com.sonsminpark.auratalkback.domain.interest.dto.response.InterestUsersResponseDto;
 import com.sonsminpark.auratalkback.domain.interest.entity.Interest;
 import com.sonsminpark.auratalkback.domain.interest.repository.InterestRepository;
-import com.sonsminpark.auratalkback.domain.user.dto.response.UserResponseDto;
+import com.sonsminpark.auratalkback.domain.user.dto.response.MyProfileResponseDto;
 import com.sonsminpark.auratalkback.domain.user.entity.User;
 import com.sonsminpark.auratalkback.domain.user.repository.UserRepository;
 import jakarta.annotation.PostConstruct;
@@ -57,12 +57,10 @@ public class InterestService {
         Interest interest = interestRepository.findByName(interestName)
                 .orElseThrow(() -> new RuntimeException("존재하지 않는 관심사입니다: " + interestName));
 
-        List<User> users = userRepository.findAll().stream()
-                .filter(user -> !user.isDeleted() && user.getInterests().contains(interestName))
-                .collect(Collectors.toList());
+        List<User> users = userRepository.findByInterestNameWithProfileImage(interestName);
 
-        List<UserResponseDto> userDtos = users.stream()
-                .map(UserResponseDto::from)
+        List<MyProfileResponseDto> userDtos = users.stream()
+                .map(MyProfileResponseDto::from)
                 .collect(Collectors.toList());
 
         return InterestUsersResponseDto.builder()

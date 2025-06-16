@@ -1,5 +1,6 @@
 package com.sonsminpark.auratalkback.domain.user.repository;
 
+import com.sonsminpark.auratalkback.domain.interest.entity.Interest;
 import com.sonsminpark.auratalkback.domain.user.entity.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -28,4 +29,8 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     @Query("SELECT u FROM User u LEFT JOIN FETCH u.userProfileImage WHERE u.id = :userId")
     Optional<User> findByIdWithProfileImage(@Param("userId") Long userId);
+
+    @Query("SELECT DISTINCT u FROM User u LEFT JOIN FETCH u.userProfileImage " +
+            "WHERE :interestName MEMBER OF u.interests AND u.isDeleted = false")
+    List<User> findByInterestNameWithProfileImage(@Param("interestName") String interestName);
 }

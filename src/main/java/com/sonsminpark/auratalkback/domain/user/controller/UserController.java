@@ -3,10 +3,12 @@ package com.sonsminpark.auratalkback.domain.user.controller;
 import com.sonsminpark.auratalkback.domain.user.dto.request.*;
 import com.sonsminpark.auratalkback.domain.user.dto.response.LoginResponseDto;
 import com.sonsminpark.auratalkback.domain.user.dto.response.SignUpResponseDto;
-import com.sonsminpark.auratalkback.domain.user.dto.response.UserResponseDto;
+import com.sonsminpark.auratalkback.domain.user.dto.response.MyProfileResponseDto;
+import com.sonsminpark.auratalkback.domain.user.dto.response.UserProfileResponseDto;
 import com.sonsminpark.auratalkback.domain.user.service.UserService;
 import com.sonsminpark.auratalkback.global.common.ApiResponse;
 import com.sonsminpark.auratalkback.global.exception.ErrorCode;
+import com.sonsminpark.auratalkback.global.security.CustomUserDetails;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -14,6 +16,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -97,15 +100,27 @@ public class UserController {
         return ResponseEntity.ok(ApiResponse.success("인증 이메일이 재전송되었습니다."));
     }
 
-    @GetMapping("/{userId}")
+    @GetMapping("/me/profile")
     @Operation(
-            summary = "프로필 조회",
-            description = "사용자 프로필 정보를 조회합니다.",
+            summary = "내 프로필 조회",
+            description = "자신의 프로필 정보를 조회합니다.",
             security = { @SecurityRequirement(name = "bearerAuth") }
     )
-    public ResponseEntity<ApiResponse<UserResponseDto>> getUserProfile(@PathVariable Long userId) {
-        UserResponseDto userResponseDto = userService.getUserProfile(userId);
-        return ResponseEntity.ok(ApiResponse.success("프로필 조회에 성공했습니다.", userResponseDto));
+    public ResponseEntity<ApiResponse<MyProfileResponseDto>> getMyProfile(@AuthenticationPrincipal CustomUserDetails userDetails) {
+        MyProfileResponseDto myProfileResponseDto = userService.getMyProfile(userDetails.getUserId());
+        return ResponseEntity.ok(ApiResponse.success("내 프로필 조회에 성공했습니다.", myProfileResponseDto));
+    }
+
+    @GetMapping("/{userId}/profile")
+    @Operation(
+            summary = "다른 사용자 프로필 조회",
+            description = "다른 사용자의 프로필 정보를 조회합니다.",
+            security = { @SecurityRequirement(name = "bearerAuth") }
+    )
+    public ResponseEntity<ApiResponse<UserProfileResponseDto>> getUserProfile(
+            @AuthenticationPrincipal CustomUserDetails userDetails, @PathVariable Long userId) {
+        UserProfileResponseDto userProfileResponseDto = userService.getUserProfile(userDetails.getUserId(), userId);
+        return ResponseEntity.ok(ApiResponse.success("유저 프로필 조회에 성공했습니다.", userProfileResponseDto));
     }
 
     @PutMapping("/{userId}/chat-settings")

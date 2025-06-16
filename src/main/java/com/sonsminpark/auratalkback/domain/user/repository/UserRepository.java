@@ -13,6 +13,7 @@ import java.util.Optional;
 @Repository
 public interface UserRepository extends JpaRepository<User, Long> {
 
+    @Query("SELECT u FROM User u LEFT JOIN FETCH u.userProfileImage WHERE u.email = :email AND u.isDeleted = false")
     Optional<User> findByEmailAndIsDeletedFalse(String email);
 
     Optional<User> findByIdAndIsDeletedFalse(Long userId);

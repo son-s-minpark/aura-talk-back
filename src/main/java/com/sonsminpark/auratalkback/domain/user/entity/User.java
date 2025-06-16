@@ -58,6 +58,9 @@ public class User {
     @Column(nullable = false)
     private boolean randomChatEnabled = false;
 
+    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    private UserProfileImage userProfileImage;
+
     public void updateStatus(UserStatus status) {
         this.status = status;
     }

@@ -2,6 +2,8 @@ package com.sonsminpark.auratalkback.domain.user.repository;
 
 import com.sonsminpark.auratalkback.domain.user.entity.User;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
@@ -22,4 +24,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
     boolean existsByNicknameAndIsDeletedFalse(String nickname);
 
     List<User> findByIsDeletedTrueAndDeletedAtBefore(LocalDateTime date);
+
+    @Query("SELECT u FROM User u LEFT JOIN FETCH u.userProfileImage WHERE u.id = :userId")
+    Optional<User> findByIdWithProfileImage(@Param("userId") Long userId);
 }

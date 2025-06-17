@@ -163,6 +163,10 @@ public class FriendServiceImpl implements FriendService {
     @Transactional
     public void blockFriend(Long requesterId, Long recipientId) {
 
+        if (requesterId.equals(recipientId)) {
+            throw SelfBlockException.create();
+        }
+
         User requester = getUserById(requesterId);
         User recipient = getUserById(recipientId);
 

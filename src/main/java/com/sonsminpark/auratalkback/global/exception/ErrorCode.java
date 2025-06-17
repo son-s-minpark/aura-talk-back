@@ -43,6 +43,7 @@ public enum ErrorCode {
     BLOCKED_USER_FRIEND_REQUEST(HttpStatus.FORBIDDEN, 434, "차단한 사용자에게 친구 요청을 보낼 수 없습니다."),
     ALREADY_FRIEND(HttpStatus.CONFLICT, 435, "이미 친구입니다."),
     FRIEND_BLOCK_NOT_FOUND(HttpStatus.NOT_FOUND, 436, "차단 관계를 찾을 수 없습니다."),
+    SELF_BLOCK(HttpStatus.BAD_REQUEST, 437, "자기 자신을 차단할 수 없습니다."),
 
 
     CHATROOM_NOT_FOUND(HttpStatus.NOT_FOUND, 440, "채팅방을 찾을 수 없습니다."),

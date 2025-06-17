@@ -179,11 +179,11 @@ public class FriendServiceImpl implements FriendService {
         friendRequestRepository.findByRequesterAndRecipient(recipient, requester)
                 .ifPresent(friendRequestRepository::delete);
 
-        FriendBlock friendBlock = FriendBlock.builder()
-                .blocker(requester)
-                .blocked(recipient)
-                .build();
-        friendBlockRepository.save(friendBlock);
+        friendBlockRepository.findByBlockerAndBlocked(requester, recipient)
+                .orElseGet(() -> friendBlockRepository.save(FriendBlock.builder()
+                        .blocker(requester)
+                        .blocked(recipient)
+                        .build()));
     }
 
     @Override

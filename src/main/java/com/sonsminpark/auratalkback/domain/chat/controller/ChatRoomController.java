@@ -2,6 +2,8 @@ package com.sonsminpark.auratalkback.domain.chat.controller;
 
 import com.sonsminpark.auratalkback.domain.chat.dto.request.ChatInviteRequestDto;
 import com.sonsminpark.auratalkback.domain.chat.dto.request.ChatRoomCreateRequestDto;
+import com.sonsminpark.auratalkback.domain.chat.dto.request.ChatRoomUpdateRequestDto;
+import com.sonsminpark.auratalkback.domain.chat.dto.request.OneToOneChatRequestDto;
 import com.sonsminpark.auratalkback.domain.chat.dto.response.ChatInviteResponseDto;
 import com.sonsminpark.auratalkback.domain.chat.dto.response.ChatRoomResponseDto;
 import com.sonsminpark.auratalkback.domain.chat.service.ChatService;
@@ -51,6 +53,25 @@ public class ChatRoomController {
                 .body(ApiResponse.success("채팅방이 성공적으로 생성되었습니다.", responseDto));
     }
 
+    @PostMapping("/one-to-one")
+    @Operation(
+            summary = "1:1 채팅방 생성",
+            description = "특정 사용자와의 1:1 채팅방을 생성하거나 기존 채팅방을 반환합니다.",
+            security = {@SecurityRequirement(name = "bearerAuth")}
+    )
+    public ResponseEntity<ApiResponse<ChatRoomResponseDto>> createOneToOneChatRoom(
+            @RequestHeader("Authorization") String authHeader,
+            @Valid @RequestBody OneToOneChatRequestDto requestDto) {
+
+        Long userId = extractUserIdFromToken(authHeader);
+        log.info("1:1 채팅방 생성 요청 - 사용자: {}, 상대방: {}", userId, requestDto.getTargetUserId());
+
+        ChatRoomResponseDto responseDto = chatService.createOneToOneChatRoom(userId, requestDto.getTargetUserId());
+
+        log.info("1:1 채팅방 처리 완료 - ID: {}", responseDto.getId());
+        return ResponseEntity.ok(ApiResponse.success("1:1 채팅방이 준비되었습니다.", responseDto));
+    }
+
     @GetMapping
     @Operation(
             summary = "채팅방 목록 조회",
@@ -67,6 +88,47 @@ public class ChatRoomController {
 
         log.debug("채팅방 목록 조회 완료 - 사용자: {}, 채팅방 수: {}", userId, chatRooms.size());
         return ResponseEntity.ok(ApiResponse.success("채팅방 목록을 성공적으로 조회했습니다.", chatRooms));
+    }
+
+    @GetMapping("/{chatroomId}")
+    @Operation(
+            summary = "채팅방 정보 조회",
+            description = "특정 채팅방의 상세 정보를 조회합니다.",
+            security = {@SecurityRequirement(name = "bearerAuth")}
+    )
+    public ResponseEntity<ApiResponse<ChatRoomResponseDto>> getChatRoomInfo(
+            @RequestHeader("Authorization") String authHeader,
+            @Parameter(description = "채팅방 ID", required = true)
+            @PathVariable Long chatroomId) {
+
+        Long userId = extractUserIdFromToken(authHeader);
+        log.debug("채팅방 정보 조회 요청 - 사용자: {}, 채팅방: {}", userId, chatroomId);
+
+        ChatRoomResponseDto chatRoom = chatService.getChatRoomInfo(chatroomId, userId);
+
+        log.debug("채팅방 정보 조회 완료 - 채팅방: {}", chatroomId);
+        return ResponseEntity.ok(ApiResponse.success("채팅방 정보를 성공적으로 조회했습니다.", chatRoom));
+    }
+
+    @PutMapping("/{chatroomId}")
+    @Operation(
+            summary = "채팅방 정보 수정",
+            description = "채팅방의 이름이나 이미지를 수정합니다. 방장만 수정할 수 있습니다.",
+            security = {@SecurityRequirement(name = "bearerAuth")}
+    )
+    public ResponseEntity<ApiResponse<ChatRoomResponseDto>> updateChatRoom(
+            @RequestHeader("Authorization") String authHeader,
+            @Parameter(description = "채팅방 ID", required = true)
+            @PathVariable Long chatroomId,
+            @Valid @RequestBody ChatRoomUpdateRequestDto requestDto) {
+
+        Long userId = extractUserIdFromToken(authHeader);
+        log.info("채팅방 정보 수정 요청 - 사용자: {}, 채팅방: {}", userId, chatroomId);
+
+        ChatRoomResponseDto responseDto = chatService.updateChatRoom(chatroomId, requestDto, userId);
+
+        log.info("채팅방 정보 수정 완료 - 채팅방: {}", chatroomId);
+        return ResponseEntity.ok(ApiResponse.success("채팅방 정보가 성공적으로 수정되었습니다.", responseDto));
     }
 
     @DeleteMapping("/{chatroomId}")

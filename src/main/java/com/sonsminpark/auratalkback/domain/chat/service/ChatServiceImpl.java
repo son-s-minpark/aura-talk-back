@@ -3,6 +3,7 @@ package com.sonsminpark.auratalkback.domain.chat.service;
 import com.sonsminpark.auratalkback.domain.chat.dto.request.ChatInviteRequestDto;
 import com.sonsminpark.auratalkback.domain.chat.dto.request.ChatMessageRequestDto;
 import com.sonsminpark.auratalkback.domain.chat.dto.request.ChatRoomCreateRequestDto;
+import com.sonsminpark.auratalkback.domain.chat.dto.request.ChatRoomUpdateRequestDto;
 import com.sonsminpark.auratalkback.domain.chat.dto.response.*;
 import com.sonsminpark.auratalkback.domain.chat.entity.*;
 import com.sonsminpark.auratalkback.domain.chat.exception.*;
@@ -24,6 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -62,6 +64,48 @@ public class ChatServiceImpl implements ChatService {
     }
 
     @Override
+    @Transactional
+    public ChatRoomResponseDto createOneToOneChatRoom(Long userId, Long targetUserId) {
+        User user = findUserById(userId);
+        User targetUser = findUserById(targetUserId);
+
+        if (userId.equals(targetUserId)) {
+            throw new IllegalArgumentException("자기 자신과는 채팅할 수 없습니다.");
+        }
+
+        Optional<ChatRoom> existingChatRoom = chatRoomRepository.findOneToOneChatRoom(
+                ChatRoomType.ONE_TO_ONE, userId, targetUserId);
+
+        if (existingChatRoom.isPresent()) {
+            ChatRoom chatRoom = existingChatRoom.get();
+            if (chatRoom.isActive()) {
+                log.info("기존 1:1 채팅방 반환 - ID: {}, 사용자: {} <-> {}",
+                        chatRoom.getId(), userId, targetUserId);
+                return buildChatRoomResponse(chatRoom, userId);
+            }
+        }
+
+        String chatRoomName = user.getNickname() + ", " + targetUser.getNickname();
+
+        ChatRoom chatRoom = ChatRoom.builder()
+                .name(chatRoomName)
+                .type(ChatRoomType.ONE_TO_ONE)
+                .owner(user)
+                .isActive(true)
+                .build();
+
+        ChatRoom savedChatRoom = chatRoomRepository.save(chatRoom);
+
+        addUserToChatRoom(savedChatRoom, user);
+        addUserToChatRoom(savedChatRoom, targetUser);
+
+        log.info("1:1 채팅방 생성 완료 - ID: {}, 사용자: {} <-> {}",
+                savedChatRoom.getId(), userId, targetUserId);
+
+        return buildChatRoomResponse(savedChatRoom, userId);
+    }
+
+    @Override
     @Transactional(readOnly = true)
     public List<ChatRoomResponseDto> getChatRoomsByUserId(Long userId) {
         validateUserExists(userId);
@@ -71,6 +115,40 @@ public class ChatServiceImpl implements ChatService {
         return chatRooms.stream()
                 .map(chatRoom -> buildChatRoomResponse(chatRoom, userId))
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public ChatRoomResponseDto getChatRoomInfo(Long chatRoomId, Long userId) {
+        ChatRoom chatRoom = findChatRoomById(chatRoomId);
+
+        validateChatRoomAccess(chatRoomId, userId);
+
+        return buildChatRoomResponse(chatRoom, userId);
+    }
+
+    @Override
+    @Transactional
+    public ChatRoomResponseDto updateChatRoom(Long chatRoomId, ChatRoomUpdateRequestDto requestDto, Long userId) {
+        ChatRoom chatRoom = findChatRoomById(chatRoomId);
+
+        validateOwnerPermission(chatRoom, userId);
+        validateChatRoomActive(chatRoom);
+
+        if (requestDto.getName() != null && !requestDto.getName().trim().isEmpty()) {
+            chatRoom.updateName(requestDto.getName().trim());
+
+            sendSystemMessage(chatRoom, "채팅방 이름이 '" + requestDto.getName() + "'로 변경되었습니다.");
+        }
+
+        if (requestDto.getRoomImageUrl() != null) {
+            chatRoom.updateRoomImage(requestDto.getRoomImageUrl());
+
+            sendSystemMessage(chatRoom, "채팅방 이미지가 변경되었습니다.");
+        }
+
+        log.info("채팅방 정보 수정 완료 - ID: {}, 수정자: {}", chatRoomId, userId);
+        return buildChatRoomResponse(chatRoom, userId);
     }
 
     @Override

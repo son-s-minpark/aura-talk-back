@@ -38,24 +38,29 @@ public class User {
     @ElementCollection
     @CollectionTable(name = "user_interests", joinColumns = @JoinColumn(name = "user_id"))
     @Column(name = "interest")
+    @Builder.Default
     private List<String> interests = new ArrayList<>();
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private UserStatus status;
+    @Builder.Default
+    private UserStatus status = UserStatus.ONLINE;
 
     @CreationTimestamp
     private LocalDateTime createdAt;
 
     @Column(nullable = false)
-    private boolean isDeleted;
+    @Builder.Default
+    private boolean isDeleted = false;
 
     private LocalDateTime deletedAt;
 
     @Column(nullable = false)
+    @Builder.Default
     private boolean emailVerified = false;
 
     @Column(nullable = false)
+    @Builder.Default
     private boolean randomChatEnabled = false;
 
     public void updateStatus(UserStatus status) {
@@ -70,13 +75,13 @@ public class User {
 
     public void update(String nickname, List<String> interests) {
         this.nickname = nickname;
-        this.interests = interests;
+        this.interests = interests != null ? interests : new ArrayList<>();
     }
 
     public void updateProfile(String username, String nickname, List<String> interests, String description) {
         this.username = username;
         this.nickname = nickname;
-        this.interests = interests;
+        this.interests = interests != null ? interests : new ArrayList<>();
         this.description = description;
     }
 

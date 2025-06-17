@@ -14,6 +14,7 @@ import com.sonsminpark.auratalkback.domain.user.repository.UserRepository;
 import com.sonsminpark.auratalkback.global.jwt.JwtTokenProvider;
 import com.sonsminpark.auratalkback.global.security.TokenBlacklistService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.ArrayList;
 //import java.util.concurrent.TimeUnit;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class UserServiceImpl implements UserService {
@@ -62,7 +64,6 @@ public class UserServiceImpl implements UserService {
 
         String email = jwtTokenProvider.getEmailFromToken(token);
 
-
         User user = userRepository.findByEmailAndIsDeletedFalse(email)
                 .orElseThrow(() -> UserNotFoundException.of(email, "존재하지 않는 사용자입니다."));
 
@@ -92,6 +93,7 @@ public class UserServiceImpl implements UserService {
                 .status(UserStatus.ONLINE)
                 .isDeleted(false)
                 .emailVerified(true) // TODO: 이메일 인증 활성화 시 해당 줄 제거하기
+                .randomChatEnabled(false)
                 .build();
 
         User savedUser = userRepository.save(user);
@@ -105,8 +107,14 @@ public class UserServiceImpl implements UserService {
         // 토큰에 userId 추가
         String token = jwtTokenProvider.createToken(savedUser.getEmail(), savedUser.getId());
 
+        UserResponseDto userResponseDto = UserResponseDto.from(savedUser);
+
+        log.info("회원가입 완료 - 사용자 ID: {}, 이메일: {}", savedUser.getId(), savedUser.getEmail());
+
         return SignUpResponseDto.builder()
+                .userId(savedUser.getId())
                 .token(token)
+                .user(userResponseDto)
                 .build();
     }
 
@@ -167,6 +175,9 @@ public class UserServiceImpl implements UserService {
                 profileSetupRequestDto.getInterests(),
                 profileSetupRequestDto.getDescription()
         );
+
+        log.info("프로필 설정 완료 - 사용자 ID: {}, 사용자명: {}, 닉네임: {}",
+                userId, profileSetupRequestDto.getUsername(), profileSetupRequestDto.getNickname());
     }
 
     @Override
@@ -230,5 +241,7 @@ public class UserServiceImpl implements UserService {
         }
 
         user.updateChatSettings(randomChatEnabled);
+
+        log.info("랜덤 채팅 설정 변경 - 사용자 ID: {}, 활성화: {}", userId, randomChatEnabled);
     }
 }

@@ -119,12 +119,10 @@ public class FriendServiceImpl implements FriendService {
     @Transactional(readOnly = true)
     public List<FriendListResponseDto> getSentFriendRequests(Long userId) {
 
-        User user = getUserById(userId);
+        List<User> recipients = friendRequestRepository.findByRequester(userId);
 
-        List<FriendRequest> friendRequests = friendRequestRepository.findByRequester(user);
-
-        return friendRequests.stream()
-                .map(friendRequest -> FriendListResponseDto.from(friendRequest.getRecipient(), FriendStatus.REQUEST_SENT))
+        return recipients.stream()
+                .map(recipient -> FriendListResponseDto.from(recipient, FriendStatus.REQUEST_SENT))
                 .toList();
     }
 
@@ -132,12 +130,10 @@ public class FriendServiceImpl implements FriendService {
     @Transactional(readOnly = true)
     public List<FriendListResponseDto> getReceivedFriendRequests(Long userId) {
 
-        User user = getUserById(userId);
+        List<User> requesters = friendRequestRepository.findByRecipientExcludingBlocked(userId);
 
-        List<FriendRequest> friendRequests = friendRequestRepository.findByRecipientExcludingBlocked(user);
-
-        return friendRequests.stream()
-                .map(friendRequest -> FriendListResponseDto.from(friendRequest.getRequester(), FriendStatus.REQUEST_RECEIVED))
+        return requesters.stream()
+                .map(requester -> FriendListResponseDto.from(requester, FriendStatus.REQUEST_RECEIVED))
                 .toList();
     }
 

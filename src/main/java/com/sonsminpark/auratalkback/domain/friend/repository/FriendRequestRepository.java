@@ -13,10 +13,18 @@ public interface FriendRequestRepository extends JpaRepository<FriendRequest, Lo
 
     Optional<FriendRequest> findByRequesterAndRecipient(User requester, User recipient);
 
-    List<FriendRequest> findByRequester(User requester);
+    @Query("SELECT r FROM FriendRequest fr " +
+            "JOIN fr.recipient r " +
+            "LEFT JOIN FETCH r.userProfileImage " +
+            "WHERE fr.requester.id = :requesterId ")
+    List<User> findByRequester(@Param("requesterId") Long requesterId);
 
-    @Query("SELECT fr FROM FriendRequest fr WHERE fr.recipient = :recipient " +
-            "AND fr.requester NOT IN " + "(SELECT fb.blocked FROM FriendBlock fb WHERE fb.blocker = :recipient)")
-    List<FriendRequest> findByRecipientExcludingBlocked(@Param("recipient") User recipient);
+    @Query("SELECT r FROM FriendRequest fr " +
+            "JOIN fr.requester r " +
+            "LEFT JOIN FETCH r.userProfileImage " +
+            "WHERE fr.recipient.id = :recipientId " +
+            "AND r NOT IN " +
+            "(SELECT fb.blocked FROM FriendBlock fb WHERE fb.blocker = :recipient)")
+    List<User> findByRecipientExcludingBlocked(@Param("recipientId") Long recipientId);
 
 }

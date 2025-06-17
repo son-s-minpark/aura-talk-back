@@ -24,7 +24,7 @@ public interface FriendRequestRepository extends JpaRepository<FriendRequest, Lo
             "LEFT JOIN FETCH r.userProfileImage " +
             "WHERE fr.recipient.id = :recipientId " +
             "AND r NOT IN " +
-            "(SELECT fb.blocked FROM FriendBlock fb WHERE fb.blocker = :recipient)")
+            "(SELECT fb.blocked FROM FriendBlock fb WHERE fb.blocker.id = :recipientId)")
     List<User> findByRecipientExcludingBlocked(@Param("recipientId") Long recipientId);
 
 }

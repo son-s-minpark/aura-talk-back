@@ -116,6 +116,7 @@ public class FriendServiceImpl implements FriendService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<FriendListResponseDto> getSentFriendRequests(Long userId) {
 
         User user = getUserById(userId);
@@ -128,6 +129,7 @@ public class FriendServiceImpl implements FriendService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<FriendListResponseDto> getReceivedFriendRequests(Long userId) {
 
         User user = getUserById(userId);
@@ -153,6 +155,7 @@ public class FriendServiceImpl implements FriendService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<FriendListResponseDto> getBlockedFriends(Long userId) {
 
         getUserById(userId);
@@ -187,6 +190,7 @@ public class FriendServiceImpl implements FriendService {
     }
 
     @Override
+    @Transactional
     public void unblockFriend(Long requesterId, Long recipientId) {
 
         User requester = getUserById(requesterId);

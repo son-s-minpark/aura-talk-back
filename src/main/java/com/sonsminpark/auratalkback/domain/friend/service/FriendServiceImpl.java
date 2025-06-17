@@ -29,6 +29,11 @@ public class FriendServiceImpl implements FriendService {
     private final FriendRequestRepository friendRequestRepository;
     private final FriendBlockRepository friendBlockRepository;
 
+    private User getUserById(Long userId) {
+        return userRepository.findByIdWithProfileImage(userId)
+                .orElseThrow(() -> UserNotFoundException.of(userId));
+    }
+
     @Override
     @Transactional
     public FriendRequestResponseDto sendFriendRequest(Long requesterId, Long recipientId) {
@@ -37,33 +42,28 @@ public class FriendServiceImpl implements FriendService {
             throw SelfFriendRequestException.create();
         }
 
-        User requester = userRepository.findById(requesterId)
-                .orElseThrow(() -> UserNotFoundException.of(requesterId));
+        User requester = getUserById(requesterId);
+        User recipient = getUserById(recipientId);
 
-        User recipient = userRepository.findById(recipientId)
-                .orElseThrow(() -> UserNotFoundException.of(recipientId));
+        friendRepository.findByUsers(requester, recipient)
+                .ifPresent(friend -> {
+                    throw AlreadyFriendException.between(requesterId, recipientId);
+                });
 
-        Optional<Friend> existingFriend = friendRepository.findByUsers(requester, recipient);
-        if (existingFriend.isPresent()) {
-            throw AlreadyFriendException.between(requesterId, recipientId);
-        }
+        friendRequestRepository.findByRequesterAndRecipient(requester, recipient)
+                .ifPresent(friendRequest -> {
+                    throw DuplicateFriendRequestException.between(requesterId, recipientId);
+                });
 
-        Optional<FriendRequest> existingFriendRequest = friendRequestRepository.findByRequesterAndRecipient(requester, recipient);
-        if (existingFriendRequest.isPresent()) {
-            throw DuplicateFriendRequestException.between(requesterId, recipientId);
-        }
-
-        Optional<FriendBlock> existingFriendBlock = friendBlockRepository.findByBlockerAndBlocked(requester, recipient);
-        if (existingFriendBlock.isPresent()) {
-            throw BlockedUserFriendRequestException.create();
-        }
+        friendBlockRepository.findByBlockerAndBlocked(requester, recipient)
+                .ifPresent(friendBlock -> {
+                    throw BlockedUserFriendRequestException.create();
+                });
 
         Optional<FriendRequest> recipientRequest = friendRequestRepository.findByRequesterAndRecipient(recipient, requester);
         if (recipientRequest.isPresent()) {
 
-            Friend friend = Friend.create(requester, recipient);
-            friendRepository.save(friend);
-
+            friendRepository.save(Friend.create(requester, recipient));
             friendRequestRepository.delete(recipientRequest.get());
 
             return FriendRequestResponseDto.builder()
@@ -71,7 +71,9 @@ public class FriendServiceImpl implements FriendService {
                     .requesterId(requesterId)
                     .recipientId(recipientId)
                     .build();
+
         } else {
+
             FriendRequest friendRequest = FriendRequest.builder()
                     .requester(requester)
                     .recipient(recipient)
@@ -84,37 +86,28 @@ public class FriendServiceImpl implements FriendService {
                     .recipientId(recipientId)
                     .build();
         }
-
     }
 
     @Override
     @Transactional
     public void acceptFriendRequest(Long recipientId, Long requesterId) {
 
-        User requester = userRepository.findById(requesterId)
-                .orElseThrow(() -> UserNotFoundException.of(requesterId));
-
-        User recipient = userRepository.findById(recipientId)
-                .orElseThrow(() -> UserNotFoundException.of(recipientId));
+        User requester = getUserById(requesterId);
+        User recipient = getUserById(recipientId);
 
         FriendRequest friendRequest = friendRequestRepository.findByRequesterAndRecipient(requester, recipient)
                 .orElseThrow(() -> FriendRequestNotFoundException.between(requesterId, recipientId));
 
-        Friend friend = Friend.create(requester, recipient);
-        friendRepository.save(friend);
+        friendRepository.save(Friend.create(requester, recipient));
         friendRequestRepository.delete(friendRequest);
-
     }
 
     @Override
     @Transactional
     public void removeFriendRequest(Long requesterId, Long recipientId) {
 
-        User requester = userRepository.findById(requesterId)
-                .orElseThrow(() -> UserNotFoundException.of(requesterId));
-
-        User recipient = userRepository.findById(recipientId)
-                .orElseThrow(() -> UserNotFoundException.of(recipientId));
+        User requester = getUserById(requesterId);
+        User recipient = getUserById(recipientId);
 
         FriendRequest friendRequest = friendRequestRepository.findByRequesterAndRecipient(requester, recipient)
                 .orElseThrow(() -> FriendRequestNotFoundException.between(requesterId, recipientId));
@@ -125,8 +118,7 @@ public class FriendServiceImpl implements FriendService {
     @Override
     public List<FriendListResponseDto> getSentFriendRequests(Long userId) {
 
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> UserNotFoundException.of(userId));
+        User user = getUserById(userId);
 
         List<FriendRequest> friendRequests = friendRequestRepository.findByRequester(user);
 
@@ -138,11 +130,9 @@ public class FriendServiceImpl implements FriendService {
     @Override
     public List<FriendListResponseDto> getReceivedFriendRequests(Long userId) {
 
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> UserNotFoundException.of(userId));
+        User user = getUserById(userId);
 
         List<FriendRequest> friendRequests = friendRequestRepository.findByRecipientExcludingBlocked(user);
-
 
         return friendRequests.stream()
                 .map(friendRequest -> FriendListResponseDto.from(friendRequest.getRequester(), FriendStatus.REQUEST_RECEIVED))
@@ -153,6 +143,8 @@ public class FriendServiceImpl implements FriendService {
     @Transactional(readOnly = true)
     public List<FriendListResponseDto> getFriends(Long userId) {
 
+        getUserById(userId);
+
         List<User> friends = friendRepository.findFriendUsers(userId);
 
         return friends.stream()
@@ -162,6 +154,8 @@ public class FriendServiceImpl implements FriendService {
 
     @Override
     public List<FriendListResponseDto> getBlockedFriends(Long userId) {
+
+        getUserById(userId);
 
         List<User> blockedUsers = friendBlockRepository.findBlockedUsers(userId);
 
@@ -174,16 +168,16 @@ public class FriendServiceImpl implements FriendService {
     @Transactional
     public void blockFriend(Long requesterId, Long recipientId) {
 
-        User requester = userRepository.findById(requesterId)
-                .orElseThrow(() -> UserNotFoundException.of(requesterId));
+        User requester = getUserById(requesterId);
+        User recipient = getUserById(recipientId);
 
-        User recipient = userRepository.findById(recipientId)
-                .orElseThrow(() -> UserNotFoundException.of(recipientId));
+        friendRepository.findByUsers(requester, recipient)
+                .ifPresent(friendRepository::delete);
 
-
-        Optional<Friend> existingFriend = friendRepository.findByUsers(requester, recipient);
-
-        existingFriend.ifPresent(friendRepository::delete);
+        friendRequestRepository.findByRequesterAndRecipient(requester, recipient)
+                .ifPresent(friendRequestRepository::delete);
+        friendRequestRepository.findByRequesterAndRecipient(recipient, requester)
+                .ifPresent(friendRequestRepository::delete);
 
         FriendBlock friendBlock = FriendBlock.builder()
                 .blocker(requester)
@@ -195,10 +189,8 @@ public class FriendServiceImpl implements FriendService {
     @Override
     public void unblockFriend(Long requesterId, Long recipientId) {
 
-        User requester = userRepository.findById(requesterId)
-                .orElseThrow(() -> UserNotFoundException.of(requesterId));
-        User recipient = userRepository.findById(recipientId)
-                .orElseThrow(() -> UserNotFoundException.of(recipientId));
+        User requester = getUserById(requesterId);
+        User recipient = getUserById(recipientId);
 
         FriendBlock friendBlock = friendBlockRepository.findByBlockerAndBlocked(requester, recipient)
                 .orElseThrow(() -> FriendBlockNotFoundException.between(requesterId, recipientId));
@@ -213,11 +205,8 @@ public class FriendServiceImpl implements FriendService {
     @Transactional
     public void deleteFriend(Long requesterId, Long recipientId) {
 
-        User requester = userRepository.findById(requesterId)
-                .orElseThrow(() -> UserNotFoundException.of(requesterId));
-
-        User recipient = userRepository.findById(recipientId)
-                .orElseThrow(() -> UserNotFoundException.of(recipientId));
+        User requester = getUserById(requesterId);
+        User recipient = getUserById(recipientId);
 
         Friend friend = friendRepository.findByUsers(requester, recipient)
                 .orElseThrow(() -> FriendNotFoundException.between(requesterId, recipientId));
@@ -228,11 +217,8 @@ public class FriendServiceImpl implements FriendService {
     @Override
     public FriendStatus getFriendStatus(Long currentUserId, Long targetUserId) {
 
-        User currentUser = userRepository.findById(currentUserId)
-                .orElseThrow(() -> UserNotFoundException.of(currentUserId));
-
-        User targetUser = userRepository.findById(targetUserId)
-                .orElseThrow(() -> UserNotFoundException.of(targetUserId));
+        User currentUser = getUserById(currentUserId);
+        User targetUser = getUserById(targetUserId);
 
         if (friendRepository.findByUsers(currentUser, targetUser).isPresent())
             return FriendStatus.FRIENDS;

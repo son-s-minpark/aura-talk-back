@@ -197,8 +197,8 @@ public class FriendServiceImpl implements FriendService {
 
         friendBlockRepository.delete(friendBlock);
 
-        Optional<FriendRequest> existingFriendRequest = friendRequestRepository.findByRequesterAndRecipient(recipient, requester);
-        existingFriendRequest.ifPresent(friendRequestRepository::delete);
+        friendRequestRepository.findByRequesterAndRecipient(recipient, requester)
+                .ifPresent(friendRequestRepository::delete);
     }
 
     @Override

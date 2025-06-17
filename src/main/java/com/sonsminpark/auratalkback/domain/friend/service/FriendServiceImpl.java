@@ -145,8 +145,6 @@ public class FriendServiceImpl implements FriendService {
     @Transactional(readOnly = true)
     public List<FriendListResponseDto> getFriends(Long userId) {
 
-        getUserById(userId);
-
         List<User> friends = friendRepository.findFriendUsers(userId);
 
         return friends.stream()
@@ -157,8 +155,6 @@ public class FriendServiceImpl implements FriendService {
     @Override
     @Transactional(readOnly = true)
     public List<FriendListResponseDto> getBlockedFriends(Long userId) {
-
-        getUserById(userId);
 
         List<User> blockedUsers = friendBlockRepository.findBlockedUsers(userId);
 

@@ -4,10 +4,12 @@ import com.sonsminpark.auratalkback.domain.interest.dto.InterestCategoryDto;
 import com.sonsminpark.auratalkback.domain.interest.dto.response.InterestResponseDto;
 import com.sonsminpark.auratalkback.domain.interest.dto.response.InterestUsersResponseDto;
 import com.sonsminpark.auratalkback.domain.interest.entity.Interest;
+import com.sonsminpark.auratalkback.domain.interest.exception.InterestNotFoundException;
 import com.sonsminpark.auratalkback.domain.interest.repository.InterestRepository;
 import com.sonsminpark.auratalkback.domain.user.dto.response.MyProfileResponseDto;
 import com.sonsminpark.auratalkback.domain.user.entity.User;
 import com.sonsminpark.auratalkback.domain.user.repository.UserRepository;
+import com.sonsminpark.auratalkback.global.exception.ErrorCode;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -55,9 +57,9 @@ public class InterestService {
     @Transactional(readOnly = true)
     public InterestUsersResponseDto getUsersByInterestName(String interestName) {
         Interest interest = interestRepository.findByName(interestName)
-                .orElseThrow(() -> new RuntimeException("존재하지 않는 관심사입니다: " + interestName));
+                .orElseThrow(() -> new InterestNotFoundException(ErrorCode.ENTITY_NOT_FOUND, "존재하지 않는 관심사입니다: " + interestName));
 
-        List<User> users = userRepository.findByInterestNameWithProfileImage(interestName);
+        List<User> users = userRepository.findActiveUsersByInterest(interestName);
 
         List<MyProfileResponseDto> userDtos = users.stream()
                 .map(MyProfileResponseDto::from)

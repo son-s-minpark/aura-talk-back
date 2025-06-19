@@ -7,6 +7,7 @@ import org.hibernate.annotations.CreationTimestamp;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -35,11 +36,9 @@ public class User {
     @Column(length = 100)
     private String description;
 
-    @ElementCollection
-    @CollectionTable(name = "user_interests", joinColumns = @JoinColumn(name = "user_id"))
-    @Column(name = "interest")
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     @Builder.Default
-    private List<String> interests = new ArrayList<>();
+    private List<UserInterest> userInterests = new ArrayList<>();
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
@@ -63,26 +62,30 @@ public class User {
     @Builder.Default
     private boolean randomChatEnabled = false;
 
-    public void updateStatus(UserStatus status) {
-        this.status = status;
-    }
-
-    public void delete() {
-        this.isDeleted = true;
-        this.deletedAt = LocalDateTime.now();
-        this.status = UserStatus.OFFLINE;
-    }
-
-    public void update(String nickname, List<String> interests) {
-        this.nickname = nickname;
-        this.interests = interests != null ? interests : new ArrayList<>();
+    public List<String> getInterests() {
+        return userInterests.stream()
+                .map(UserInterest::getInterestName)
+                .collect(Collectors.toList());
     }
 
     public void updateProfile(String username, String nickname, List<String> interests, String description) {
         this.username = username;
         this.nickname = nickname;
-        this.interests = interests != null ? interests : new ArrayList<>();
         this.description = description;
+        updateInterests(interests);
+    }
+
+    private void updateInterests(List<String> interests) {
+        this.userInterests.clear();
+        if (interests != null) {
+            for (String interest : interests) {
+                this.userInterests.add(new UserInterest(this, interest));
+            }
+        }
+    }
+
+    public void updateStatus(UserStatus status) {
+        this.status = status;
     }
 
     public void updateChatSettings(boolean randomChatEnabled) {
@@ -93,12 +96,18 @@ public class User {
         this.emailVerified = true;
     }
 
+    public void delete() {
+        this.isDeleted = true;
+        this.deletedAt = LocalDateTime.now();
+        this.status = UserStatus.OFFLINE;
+    }
+
     // 탈퇴한 사용자 정보 익명화
     public void anonymize() {
         this.email = "deleted_" + this.id + "_" + System.currentTimeMillis() + "@deleted.com";
         this.username = "탈퇴회원";
         this.nickname = "탈퇴회원";
         this.password = "";
-        this.interests.clear();
+        this.userInterests.clear();
     }
 }

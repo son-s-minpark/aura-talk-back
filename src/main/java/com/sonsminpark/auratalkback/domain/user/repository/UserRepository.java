@@ -23,8 +23,11 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     boolean existsByNicknameAndIsDeletedFalse(String nickname);
 
-    List<User> findByIsDeletedTrueAndDeletedAtBefore(LocalDateTime date);
-
-    @Query("SELECT u FROM User u JOIN u.interests i WHERE i = :interestName AND u.isDeleted = false")
+    // 관심사별 사용자 조회 (N+1 해결)
+    @Query("SELECT DISTINCT u FROM User u " +
+            "LEFT JOIN FETCH u.userInterests ui " +
+            "WHERE ui.interestName = :interestName AND u.isDeleted = false")
     List<User> findActiveUsersByInterest(@Param("interestName") String interestName);
+
+    List<User> findByIsDeletedTrueAndDeletedAtBefore(LocalDateTime date);
 }

@@ -344,61 +344,6 @@ public class ChatServiceImpl implements ChatService {
         log.info("사용자 {}의 채팅방 {} 알림 설정이 {}로 변경되었습니다.", userId, chatRoomId, enabled ? "활성화" : "비활성화");
     }
 
-    @Override
-    @Deprecated
-    @Transactional(readOnly = true)
-    public List<ChatInvitationResponseDto> getPendingInvitations(Long userId) {
-        log.debug("Deprecated 메소드 호출 - getPendingInvitations. 사용자: {}", userId);
-        return List.of();
-    }
-
-    @Override
-    @Deprecated
-    @Transactional
-    public void acceptInvitation(Long invitationId, Long userId) {
-        log.warn("Deprecated 메소드 호출 - acceptInvitation. 사용자: {}, 초대 ID: {}", userId, invitationId);
-        throw new UnsupportedOperationException("이 기능은 더 이상 지원되지 않습니다. 초대 링크 방식으로 변경되었습니다.");
-    }
-
-    @Override
-    @Deprecated
-    @Transactional
-    public void rejectInvitation(Long invitationId, Long userId) {
-        log.warn("Deprecated 메소드 호출 - rejectInvitation. 사용자: {}, 초대 ID: {}", userId, invitationId);
-        throw new UnsupportedOperationException("이 기능은 더 이상 지원되지 않습니다.");
-    }
-
-    @Override
-    @Deprecated
-    @Transactional
-    public void rejectInvite(String inviteCode, Long userId) {
-        log.warn("Deprecated 메소드 호출 - rejectInvite. 사용자: {}, 초대 코드: {}", userId, inviteCode);
-        throw new UnsupportedOperationException("이 기능은 더 이상 지원되지 않습니다.");
-    }
-
-    @Override
-    @Deprecated
-    @Transactional
-    public ChatInvitationResponseDto inviteUser(Long chatRoomId, ChatInviteRequestDto requestDto, Long userId) {
-        log.warn("Deprecated 메소드 호출 - inviteUser. sendInviteToFriend 사용을 권장합니다.");
-
-        sendInviteToFriend(chatRoomId, requestDto, userId);
-
-        User inviter = findUserById(userId);
-        User invitee = findUserById(requestDto.getUserId());
-        ChatRoom chatRoom = findChatRoomById(chatRoomId);
-
-        return ChatInvitationResponseDto.builder()
-                .id(-1L)
-                .chatRoomId(chatRoomId)
-                .chatRoomName(chatRoom.getName())
-                .inviter(ChatUserResponseDto.from(inviter))
-                .invitee(ChatUserResponseDto.from(invitee))
-                .status(InvitationStatus.PENDING)
-                .createdAt(LocalDateTime.now())
-                .build();
-    }
-
     private User findUserById(Long userId) {
         return userRepository.findByIdAndIsDeletedFalse(userId)
                 .orElseThrow(() -> UserNotFoundException.of(userId));

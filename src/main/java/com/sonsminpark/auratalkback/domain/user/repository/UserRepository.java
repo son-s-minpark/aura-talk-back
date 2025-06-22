@@ -13,6 +13,7 @@ import java.util.Optional;
 @Repository
 public interface UserRepository extends JpaRepository<User, Long> {
 
+    @Query("SELECT u FROM User u LEFT JOIN FETCH u.userProfileImage WHERE u.email = :email AND u.isDeleted = false")
     Optional<User> findByEmailAndIsDeletedFalse(String email);
 
     Optional<User> findByIdAndIsDeletedFalse(Long userId);
@@ -23,11 +24,14 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     boolean existsByNicknameAndIsDeletedFalse(String nickname);
 
-    // 관심사별 사용자 조회 (N+1 해결)
+    List<User> findByIsDeletedTrueAndDeletedAtBefore(LocalDateTime date);
+
     @Query("SELECT DISTINCT u FROM User u " +
             "LEFT JOIN FETCH u.userInterests ui " +
+            "LEFT JOIN FETCH u.userProfileImage " +
             "WHERE ui.interestName = :interestName AND u.isDeleted = false")
     List<User> findActiveUsersByInterest(@Param("interestName") String interestName);
 
-    List<User> findByIsDeletedTrueAndDeletedAtBefore(LocalDateTime date);
+    @Query("SELECT u FROM User u LEFT JOIN FETCH u.userProfileImage WHERE u.id = :userId")
+    Optional<User> findByIdWithProfileImage(@Param("userId") Long userId);
 }

@@ -6,7 +6,7 @@ import com.sonsminpark.auratalkback.domain.interest.dto.response.InterestUsersRe
 import com.sonsminpark.auratalkback.domain.interest.entity.Interest;
 import com.sonsminpark.auratalkback.domain.interest.exception.InterestNotFoundException;
 import com.sonsminpark.auratalkback.domain.interest.repository.InterestRepository;
-import com.sonsminpark.auratalkback.domain.user.dto.response.UserResponseDto;
+import com.sonsminpark.auratalkback.domain.user.dto.response.MyProfileResponseDto;
 import com.sonsminpark.auratalkback.domain.user.entity.User;
 import com.sonsminpark.auratalkback.domain.user.repository.UserRepository;
 import com.sonsminpark.auratalkback.global.exception.ErrorCode;
@@ -61,8 +61,8 @@ public class InterestService {
 
         List<User> users = userRepository.findActiveUsersByInterest(interestName);
 
-        List<UserResponseDto> userDtos = users.stream()
-                .map(UserResponseDto::from)
+        List<MyProfileResponseDto> userDtos = users.stream()
+                .map(MyProfileResponseDto::from)
                 .collect(Collectors.toList());
 
         return InterestUsersResponseDto.builder()

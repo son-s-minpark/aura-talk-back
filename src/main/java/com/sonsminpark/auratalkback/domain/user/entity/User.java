@@ -7,7 +7,6 @@ import org.hibernate.annotations.CreationTimestamp;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -62,10 +61,18 @@ public class User {
     @Builder.Default
     private boolean randomChatEnabled = false;
 
+    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    private UserProfileImage userProfileImage;
+
     public List<String> getInterests() {
         return userInterests.stream()
                 .map(UserInterest::getInterestName)
-                .collect(Collectors.toList());
+                .toList();
+    }
+
+    public void update(String nickname, List<String> interests) {
+        this.nickname = nickname;
+        updateInterests(interests);
     }
 
     public void updateProfile(String username, String nickname, List<String> interests, String description) {

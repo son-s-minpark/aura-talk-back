@@ -89,7 +89,7 @@ public class UserServiceImpl implements UserService {
                 .password(encodedPassword)
                 .username("임시 사용자명")
                 .nickname("임시 닉네임")
-                .userInterests(new ArrayList<>())
+                .interests(new ArrayList<>())
                 .status(UserStatus.ONLINE)
                 .isDeleted(false)
                 .emailVerified(true) // TODO: 이메일 인증 활성화 시 해당 줄 제거하기

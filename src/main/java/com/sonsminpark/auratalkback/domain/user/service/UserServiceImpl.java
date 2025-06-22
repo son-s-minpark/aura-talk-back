@@ -1,9 +1,12 @@
 package com.sonsminpark.auratalkback.domain.user.service;
 
+import com.sonsminpark.auratalkback.domain.friend.entity.FriendStatus;
+import com.sonsminpark.auratalkback.domain.friend.service.FriendService;
 import com.sonsminpark.auratalkback.domain.user.dto.request.*;
 import com.sonsminpark.auratalkback.domain.user.dto.response.LoginResponseDto;
 import com.sonsminpark.auratalkback.domain.user.dto.response.SignUpResponseDto;
-import com.sonsminpark.auratalkback.domain.user.dto.response.UserResponseDto;
+import com.sonsminpark.auratalkback.domain.user.dto.response.MyProfileResponseDto;
+import com.sonsminpark.auratalkback.domain.user.dto.response.UserProfileResponseDto;
 import com.sonsminpark.auratalkback.domain.user.entity.User;
 import com.sonsminpark.auratalkback.domain.user.entity.UserStatus;
 import com.sonsminpark.auratalkback.domain.user.exception.DuplicateUserException;
@@ -31,6 +34,7 @@ public class UserServiceImpl implements UserService {
     private final TokenBlacklistService tokenBlacklistService;
     private final EmailService emailService;
     private final UserProfileImageService userProfileImageService;
+    private final FriendService friendService;
 
     @Override
     @Transactional
@@ -48,7 +52,7 @@ public class UserServiceImpl implements UserService {
         // userId를 포함하여 토큰 생성
         String token = jwtTokenProvider.createToken(user.getEmail(), user.getId());
 
-        UserResponseDto userResponseDto = UserResponseDto.from(user);
+        MyProfileResponseDto userResponseDto = MyProfileResponseDto.from(user);
 
         return LoginResponseDto.builder()
                 .token(token)
@@ -206,16 +210,31 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional(readOnly = true)
-    public UserResponseDto getUserProfile(String token) {
-        Long userId = jwtTokenProvider.getUserIdFromToken(token);
-        User user = userRepository.findById(userId)
+    public MyProfileResponseDto getMyProfile(Long userId) {
+        User user = userRepository.findByIdWithProfileImage(userId)
                 .orElseThrow(() -> UserNotFoundException.of(userId));
 
         if (user.isDeleted()) {
             throw InvalidUserInputException.of("탈퇴한 회원의 프로필은 조회할 수 없습니다.");
         }
 
-        return UserResponseDto.from(user);
+        return MyProfileResponseDto.from(user);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public UserProfileResponseDto getUserProfile(Long currentUserId, Long targetUserId) {
+
+        User user = userRepository.findByIdWithProfileImage(targetUserId)
+                .orElseThrow(() -> UserNotFoundException.of(targetUserId));
+
+        if (user.isDeleted()) {
+            throw InvalidUserInputException.of("탈퇴한 회원의 프로필은 조회할 수 없습니다.");
+        }
+
+        FriendStatus friendStatus = friendService.getFriendStatus(currentUserId, targetUserId);
+
+        return UserProfileResponseDto.from(user, friendStatus);
     }
 
     @Override

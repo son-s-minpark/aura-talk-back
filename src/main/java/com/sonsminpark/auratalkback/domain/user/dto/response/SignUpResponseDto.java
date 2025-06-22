@@ -12,5 +12,5 @@ import lombok.NoArgsConstructor;
 public class SignUpResponseDto {
     private Long userId;
     private String token;
-    private UserResponseDto user;
+    private MyProfileResponseDto user;
 }

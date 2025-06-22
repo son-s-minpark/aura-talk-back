@@ -1,9 +1,12 @@
 package com.sonsminpark.auratalkback.domain.user.service;
 
+import com.sonsminpark.auratalkback.domain.friend.entity.FriendStatus;
+import com.sonsminpark.auratalkback.domain.friend.service.FriendService;
 import com.sonsminpark.auratalkback.domain.user.dto.request.*;
 import com.sonsminpark.auratalkback.domain.user.dto.response.LoginResponseDto;
 import com.sonsminpark.auratalkback.domain.user.dto.response.SignUpResponseDto;
-import com.sonsminpark.auratalkback.domain.user.dto.response.UserResponseDto;
+import com.sonsminpark.auratalkback.domain.user.dto.response.MyProfileResponseDto;
+import com.sonsminpark.auratalkback.domain.user.dto.response.UserProfileResponseDto;
 import com.sonsminpark.auratalkback.domain.user.entity.User;
 import com.sonsminpark.auratalkback.domain.user.entity.UserStatus;
 import com.sonsminpark.auratalkback.domain.user.exception.DuplicateUserException;
@@ -14,7 +17,6 @@ import com.sonsminpark.auratalkback.domain.user.repository.UserRepository;
 import com.sonsminpark.auratalkback.global.jwt.JwtTokenProvider;
 import com.sonsminpark.auratalkback.global.security.TokenBlacklistService;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,7 +24,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.ArrayList;
 //import java.util.concurrent.TimeUnit;
 
-@Slf4j
 @Service
 @RequiredArgsConstructor
 public class UserServiceImpl implements UserService {
@@ -33,6 +34,7 @@ public class UserServiceImpl implements UserService {
     private final TokenBlacklistService tokenBlacklistService;
     private final EmailService emailService;
     private final UserProfileImageService userProfileImageService;
+    private final FriendService friendService;
 
     @Override
     @Transactional
@@ -50,7 +52,7 @@ public class UserServiceImpl implements UserService {
         // userId를 포함하여 토큰 생성
         String token = jwtTokenProvider.createToken(user.getEmail(), user.getId());
 
-        UserResponseDto userResponseDto = UserResponseDto.from(user);
+        MyProfileResponseDto userResponseDto = MyProfileResponseDto.from(user);
 
         return LoginResponseDto.builder()
                 .token(token)
@@ -63,6 +65,7 @@ public class UserServiceImpl implements UserService {
     public void logout(String token) {
 
         String email = jwtTokenProvider.getEmailFromToken(token);
+
 
         User user = userRepository.findByEmailAndIsDeletedFalse(email)
                 .orElseThrow(() -> UserNotFoundException.of(email, "존재하지 않는 사용자입니다."));
@@ -89,11 +92,9 @@ public class UserServiceImpl implements UserService {
                 .password(encodedPassword)
                 .username("임시 사용자명")
                 .nickname("임시 닉네임")
-                .interests(new ArrayList<>())
                 .status(UserStatus.ONLINE)
                 .isDeleted(false)
                 .emailVerified(true) // TODO: 이메일 인증 활성화 시 해당 줄 제거하기
-                .randomChatEnabled(false)
                 .build();
 
         User savedUser = userRepository.save(user);
@@ -107,14 +108,10 @@ public class UserServiceImpl implements UserService {
         // 토큰에 userId 추가
         String token = jwtTokenProvider.createToken(savedUser.getEmail(), savedUser.getId());
 
-        UserResponseDto userResponseDto = UserResponseDto.from(savedUser);
-
-        log.info("회원가입 완료 - 사용자 ID: {}, 이메일: {}", savedUser.getId(), savedUser.getEmail());
-
         return SignUpResponseDto.builder()
                 .userId(savedUser.getId())
                 .token(token)
-                .user(userResponseDto)
+                .user(MyProfileResponseDto.from(savedUser))
                 .build();
     }
 
@@ -175,9 +172,6 @@ public class UserServiceImpl implements UserService {
                 profileSetupRequestDto.getInterests(),
                 profileSetupRequestDto.getDescription()
         );
-
-        log.info("프로필 설정 완료 - 사용자 ID: {}, 사용자명: {}, 닉네임: {}",
-                userId, profileSetupRequestDto.getUsername(), profileSetupRequestDto.getNickname());
     }
 
     @Override
@@ -217,16 +211,31 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional(readOnly = true)
-    public UserResponseDto getUserProfile(String token) {
-        Long userId = jwtTokenProvider.getUserIdFromToken(token);
-        User user = userRepository.findById(userId)
+    public MyProfileResponseDto getMyProfile(Long userId) {
+        User user = userRepository.findByIdWithProfileImage(userId)
                 .orElseThrow(() -> UserNotFoundException.of(userId));
 
         if (user.isDeleted()) {
             throw InvalidUserInputException.of("탈퇴한 회원의 프로필은 조회할 수 없습니다.");
         }
 
-        return UserResponseDto.from(user);
+        return MyProfileResponseDto.from(user);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public UserProfileResponseDto getUserProfile(Long currentUserId, Long targetUserId) {
+
+        User user = userRepository.findByIdWithProfileImage(targetUserId)
+                .orElseThrow(() -> UserNotFoundException.of(targetUserId));
+
+        if (user.isDeleted()) {
+            throw InvalidUserInputException.of("탈퇴한 회원의 프로필은 조회할 수 없습니다.");
+        }
+
+        FriendStatus friendStatus = friendService.getFriendStatus(currentUserId, targetUserId);
+
+        return UserProfileResponseDto.from(user, friendStatus);
     }
 
     @Override
@@ -241,7 +250,5 @@ public class UserServiceImpl implements UserService {
         }
 
         user.updateChatSettings(randomChatEnabled);
-
-        log.info("랜덤 채팅 설정 변경 - 사용자 ID: {}, 활성화: {}", userId, randomChatEnabled);
     }
 }

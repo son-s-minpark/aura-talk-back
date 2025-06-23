@@ -28,6 +28,8 @@ public interface ChatService {
 
     void deleteChatRoom(Long chatRoomId, Long userId);
 
+    void kickUser(Long chatRoomId, Long ownerId, Long targetUserId);
+
     // 메시지
     ChatMessageResponseDto sendMessage(Long chatRoomId, ChatMessageRequestDto requestDto, Long userId);
 

@@ -259,4 +259,26 @@ public class ChatRoomController {
         log.info("채팅방 삭제 완료 - 채팅방: {}", chatroomId);
         return ResponseEntity.ok(ApiResponse.success("채팅방이 삭제되었습니다."));
     }
+
+    @DeleteMapping("/{chatroomId}/kick/{targetUserId}")
+    @Operation(
+            summary = "채팅방 사용자 강퇴",
+            description = "방장이 채팅방에서 특정 사용자를 강퇴합니다.",
+            security = {@SecurityRequirement(name = "bearerAuth")}
+    )
+    public ResponseEntity<ApiResponse<Void>> kickUser(
+            @RequestHeader("Authorization") String authHeader,
+            @Parameter(description = "채팅방 ID", required = true)
+            @PathVariable Long chatroomId,
+            @Parameter(description = "강퇴할 사용자 ID", required = true)
+            @PathVariable Long targetUserId) {
+
+        Long userId = extractUserIdFromToken(authHeader);
+        log.info("사용자 강퇴 요청 - 방장: {}, 채팅방: {}, 대상: {}", userId, chatroomId, targetUserId);
+
+        chatService.kickUser(chatroomId, userId, targetUserId);
+
+        log.info("사용자 강퇴 완료 - 대상: {}, 채팅방: {}", targetUserId, chatroomId);
+        return ResponseEntity.ok(ApiResponse.success("사용자가 강퇴되었습니다."));
+    }
 }

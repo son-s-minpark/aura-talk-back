@@ -188,6 +188,31 @@ public class ChatServiceImpl implements ChatService {
 
     @Override
     @Transactional
+    public void kickUser(Long chatRoomId, Long ownerId, Long targetUserId) {
+        ChatRoom chatRoom = findChatRoomById(chatRoomId);
+        User targetUser = findUserById(targetUserId);
+
+        validateOwnerPermission(chatRoom, ownerId);
+        validateChatRoomActive(chatRoom);
+
+        if (ownerId.equals(targetUserId)) {
+            throw new IllegalArgumentException("자기 자신을 강퇴할 수 없습니다.");
+        }
+
+        ChatRoomUser roomUser = chatRoomUserRepository.findByChatRoomIdAndUserId(chatRoomId, targetUserId)
+                .orElseThrow(() -> InvalidChatRoomStateException.notMember());
+
+        sendSystemMessage(chatRoom, targetUser.getNickname() + "님이 강퇴되었습니다.");
+
+        chatRoomUserRepository.delete(roomUser);
+
+        sendDirectMessage(targetUser, "'" + chatRoom.getName() + "' 채팅방에서 강퇴되었습니다.");
+
+        log.info("사용자 {}가 채팅방 {}에서 강퇴되었습니다.", targetUserId, chatRoomId);
+    }
+
+    @Override
+    @Transactional
     public ChatMessageResponseDto sendMessage(Long chatRoomId, ChatMessageRequestDto requestDto, Long userId) {
         ChatRoom chatRoom = findChatRoomById(chatRoomId);
         User sender = findUserById(userId);

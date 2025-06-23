@@ -239,4 +239,24 @@ public class ChatRoomController {
         String token = authHeader.substring(7); // "Bearer " 제거
         return jwtTokenProvider.getUserIdFromToken(token);
     }
+
+    @DeleteMapping("/{chatroomId}/delete")
+    @Operation(
+            summary = "채팅방 삭제",
+            description = "방장이 채팅방을 완전히 삭제합니다. 모든 메시지와 사용자가 제거됩니다.",
+            security = {@SecurityRequirement(name = "bearerAuth")}
+    )
+    public ResponseEntity<ApiResponse<Void>> deleteChatRoom(
+            @RequestHeader("Authorization") String authHeader,
+            @Parameter(description = "채팅방 ID", required = true)
+            @PathVariable Long chatroomId) {
+
+        Long userId = extractUserIdFromToken(authHeader);
+        log.info("채팅방 삭제 요청 - 사용자: {}, 채팅방: {}", userId, chatroomId);
+
+        chatService.deleteChatRoom(chatroomId, userId);
+
+        log.info("채팅방 삭제 완료 - 채팅방: {}", chatroomId);
+        return ResponseEntity.ok(ApiResponse.success("채팅방이 삭제되었습니다."));
+    }
 }

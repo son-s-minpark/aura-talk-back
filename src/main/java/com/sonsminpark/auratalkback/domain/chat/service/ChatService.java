@@ -26,6 +26,8 @@ public interface ChatService {
 
     void leaveChatRoom(Long chatRoomId, Long userId);
 
+    void deleteChatRoom(Long chatRoomId, Long userId);
+
     // 메시지
     ChatMessageResponseDto sendMessage(Long chatRoomId, ChatMessageRequestDto requestDto, Long userId);
 

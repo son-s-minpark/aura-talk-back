@@ -171,6 +171,23 @@ public class ChatServiceImpl implements ChatService {
 
     @Override
     @Transactional
+    public void deleteChatRoom(Long chatRoomId, Long userId) {
+        ChatRoom chatRoom = findChatRoomById(chatRoomId);
+
+        validateOwnerPermission(chatRoom, userId);
+
+        sendSystemMessage(chatRoom, "채팅방이 없습니다.");
+
+        // 채팅방과 관련된 모든 데이터 삭제
+        chatRoomUserRepository.deleteAllByChatRoomId(chatRoomId);
+        chatMessageRepository.deleteAllByChatRoomId(chatRoomId);
+        chatRoomRepository.delete(chatRoom);
+
+        log.info("채팅방 {}이 완전히 삭제되었습니다.", chatRoomId);
+    }
+
+    @Override
+    @Transactional
     public ChatMessageResponseDto sendMessage(Long chatRoomId, ChatMessageRequestDto requestDto, Long userId) {
         ChatRoom chatRoom = findChatRoomById(chatRoomId);
         User sender = findUserById(userId);

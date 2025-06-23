@@ -39,4 +39,11 @@ public interface ChatRoomRepository extends JpaRepository<ChatRoom, Long> {
 
     @Query("SELECT cr FROM ChatRoom cr WHERE LOWER(cr.name) LIKE LOWER(CONCAT('%', :keyword, '%')) AND cr.isActive = true")
     List<ChatRoom> searchByName(@Param("keyword") String keyword);
+
+    @Query("SELECT cr FROM ChatRoom cr " +
+            "JOIN ChatRoomUser cru ON cr.id = cru.chatRoom.id " +
+            "WHERE cru.user.id = :userId AND cr.isActive = true " +
+            "AND LOWER(cr.name) LIKE LOWER(CONCAT('%', :keyword, '%')) " +
+            "ORDER BY cr.lastMessageAt DESC")
+    List<ChatRoom> searchByNameAndUserId(@Param("keyword") String keyword, @Param("userId") Long userId);
 }

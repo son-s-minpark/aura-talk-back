@@ -281,4 +281,24 @@ public class ChatRoomController {
         log.info("사용자 강퇴 완료 - 대상: {}, 채팅방: {}", targetUserId, chatroomId);
         return ResponseEntity.ok(ApiResponse.success("사용자가 강퇴되었습니다."));
     }
+
+    @GetMapping("/search")
+    @Operation(
+            summary = "채팅방 검색",
+            description = "채팅방 이름으로 검색합니다.",
+            security = {@SecurityRequirement(name = "bearerAuth")}
+    )
+    public ResponseEntity<ApiResponse<List<ChatRoomResponseDto>>> searchChatRooms(
+            @RequestHeader("Authorization") String authHeader,
+            @Parameter(description = "검색 키워드", required = true)
+            @RequestParam String keyword) {
+
+        Long userId = extractUserIdFromToken(authHeader);
+        log.debug("채팅방 검색 요청 - 사용자: {}, 키워드: {}", userId, keyword);
+
+        List<ChatRoomResponseDto> chatRooms = chatService.searchChatRooms(keyword, userId);
+
+        log.debug("채팅방 검색 완료 - 사용자: {}, 결과 수: {}", userId, chatRooms.size());
+        return ResponseEntity.ok(ApiResponse.success("채팅방 검색이 완료되었습니다.", chatRooms));
+    }
 }

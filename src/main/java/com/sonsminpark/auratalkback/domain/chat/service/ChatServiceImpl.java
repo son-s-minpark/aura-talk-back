@@ -212,6 +212,23 @@ public class ChatServiceImpl implements ChatService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public List<ChatRoomResponseDto> searchChatRooms(String keyword, Long userId) {
+        validateUserExists(userId);
+
+        if (keyword == null || keyword.trim().isEmpty()) {
+            return List.of();
+        }
+
+        // 사용자가 참여한 채팅방 중에서 검색
+        List<ChatRoom> searchResults = chatRoomRepository.searchByNameAndUserId(keyword.trim(), userId);
+
+        return searchResults.stream()
+                .map(chatRoom -> buildChatRoomResponse(chatRoom, userId))
+                .collect(Collectors.toList());
+    }
+
+    @Override
     @Transactional
     public ChatMessageResponseDto sendMessage(Long chatRoomId, ChatMessageRequestDto requestDto, Long userId) {
         ChatRoom chatRoom = findChatRoomById(chatRoomId);

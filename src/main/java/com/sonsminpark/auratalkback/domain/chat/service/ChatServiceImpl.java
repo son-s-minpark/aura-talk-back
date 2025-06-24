@@ -214,6 +214,30 @@ public class ChatServiceImpl implements ChatService {
     }
 
     @Override
+    @Transactional
+    public void unbanUser(Long chatRoomId, Long ownerId, Long targetUserId) {
+        ChatRoom chatRoom = findChatRoomById(chatRoomId);
+        User targetUser = findUserById(targetUserId);
+
+        validateOwnerPermission(chatRoom, ownerId);
+        validateChatRoomActive(chatRoom);
+
+        if (ownerId.equals(targetUserId)) {
+            throw new IllegalArgumentException("자기 자신의 강퇴를 해제할 수 없습니다.");
+        }
+
+        if (!chatRoom.isBannedUser(targetUserId)) {
+            throw new IllegalArgumentException("강퇴되지 않은 사용자입니다.");
+        }
+
+        chatRoom.unbanUser(targetUser);
+
+        sendSystemMessage(chatRoom, targetUser.getNickname() + "님의 강퇴가 해제되었습니다.");
+
+        log.info("사용자 {}의 채팅방 {} 강퇴가 해제되었습니다.", targetUserId, chatRoomId);
+    }
+
+    @Override
     @Transactional(readOnly = true)
     public List<ChatRoomResponseDto> searchChatRooms(String keyword, Long userId) {
         validateUserExists(userId);

@@ -2,6 +2,7 @@ package com.sonsminpark.auratalkback.domain.friend.dto.response;
 
 import com.sonsminpark.auratalkback.domain.friend.entity.FriendStatus;
 import com.sonsminpark.auratalkback.domain.user.entity.User;
+import com.sonsminpark.auratalkback.domain.user.entity.UserStatus;
 import lombok.Builder;
 import lombok.Getter;
 
@@ -15,6 +16,7 @@ public class FriendListResponseDto {
     private String nickname;
     private String description;
     private String thumbnailImageUrl;
+    private UserStatus status;
 
 
     public static FriendListResponseDto from(User user, FriendStatus friendStatus) {
@@ -25,6 +27,7 @@ public class FriendListResponseDto {
                 .nickname(user.getNickname())
                 .description(user.getDescription())
                 .thumbnailImageUrl(user.getUserProfileImage().getThumbnailImageUrl())
+                .status(user.getStatus().toPublicStatus())
                 .build();
     }
 }

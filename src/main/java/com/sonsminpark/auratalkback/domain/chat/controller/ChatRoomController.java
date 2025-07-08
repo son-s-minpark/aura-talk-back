@@ -9,6 +9,10 @@ import com.sonsminpark.auratalkback.domain.chat.dto.response.ChatRoomResponseDto
 import com.sonsminpark.auratalkback.domain.chat.service.ChatService;
 import com.sonsminpark.auratalkback.global.common.ApiResponse;
 import com.sonsminpark.auratalkback.global.jwt.JwtTokenProvider;
+import com.sonsminpark.auratalkback.global.s3.S3Service;
+import com.sonsminpark.auratalkback.global.s3.UploadType;
+import com.sonsminpark.auratalkback.global.s3.dto.request.PresignedUploadRequestDto;
+import com.sonsminpark.auratalkback.global.s3.dto.response.PresignedUploadResponseDto;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -31,12 +35,13 @@ import java.util.List;
 public class ChatRoomController {
 
     private final ChatService chatService;
+    private final S3Service s3Service;
     private final JwtTokenProvider jwtTokenProvider;
 
     @PostMapping
     @Operation(
             summary = "채팅방 만들기",
-            description = "새로운 채팅방을 생성합니다.",
+            description = "새로운 채팅방을 생성합니다. 채팅방 이미지를 설정하려면 roomImageS3Key를 포함하세요.",
             security = {@SecurityRequirement(name = "bearerAuth")}
     )
     public ResponseEntity<ApiResponse<ChatRoomResponseDto>> createChatRoom(
@@ -44,13 +49,33 @@ public class ChatRoomController {
             @Valid @RequestBody ChatRoomCreateRequestDto requestDto) {
 
         Long userId = extractUserIdFromToken(authHeader);
-        log.info("채팅방 생성 요청 - 사용자: {}, 채팅방명: {}", userId, requestDto.getName());
+        log.info("채팅방 생성 요청 - 사용자: {}, 채팅방명: {}, 이미지 키: {}",
+                userId, requestDto.getName(), requestDto.getRoomImageS3Key());
 
         ChatRoomResponseDto responseDto = chatService.createChatRoom(requestDto, userId);
 
         log.info("채팅방 생성 완료 - ID: {}, 이름: {}", responseDto.getId(), responseDto.getName());
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success("채팅방이 성공적으로 생성되었습니다.", responseDto));
+    }
+
+    @PostMapping("/room-image/presigned-url")
+    @Operation(
+            summary = "채팅방 이미지 업로드용 S3 PresignedUrl 생성",
+            description = "채팅방 이미지 업로드를 위한 S3 PresignedUrl을 생성합니다.",
+            security = {@SecurityRequirement(name = "bearerAuth")}
+    )
+    public ResponseEntity<ApiResponse<PresignedUploadResponseDto>> getRoomImageUploadUrl(
+            @RequestHeader("Authorization") String authHeader,
+            @Valid @RequestBody PresignedUploadRequestDto presignedUploadRequestDto) {
+
+        Long userId = extractUserIdFromToken(authHeader);
+        log.info("채팅방 이미지 업로드 URL 생성 요청 - 사용자: {}", userId);
+
+        PresignedUploadResponseDto responseDto =
+                s3Service.generatePresignedUploadUrl(UploadType.GROUP, presignedUploadRequestDto);
+
+        return ResponseEntity.ok(ApiResponse.success("채팅방 이미지 업로드 URL이 생성되었습니다.", responseDto));
     }
 
     @PostMapping("/one-to-one")

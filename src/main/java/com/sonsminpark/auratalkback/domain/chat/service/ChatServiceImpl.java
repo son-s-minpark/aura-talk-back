@@ -17,6 +17,7 @@ import com.sonsminpark.auratalkback.domain.user.repository.UserRepository;
 import com.sonsminpark.auratalkback.domain.user.service.UserProfileImageService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -42,15 +43,26 @@ public class ChatServiceImpl implements ChatService {
     private final SimpMessagingTemplate messagingTemplate;
     private final UserProfileImageService userProfileImageService;
 
+    @Value("${cloud.aws.s3.bucket}")
+    private String bucketName;
+
     @Override
     @Transactional
     public ChatRoomResponseDto createChatRoom(ChatRoomCreateRequestDto requestDto, Long userId) {
         User owner = findUserById(userId);
 
+        // 채팅방 이미지 URL 생성
+        String roomImageUrl = null;
+        if (requestDto.getRoomImageS3Key() != null && !requestDto.getRoomImageS3Key().trim().isEmpty()) {
+            roomImageUrl = "https://" + bucketName + ".s3.amazonaws.com/" + requestDto.getRoomImageS3Key();
+            log.info("채팅방 이미지 설정 - S3 키: {}, URL: {}", requestDto.getRoomImageS3Key(), roomImageUrl);
+        }
+
         ChatRoom chatRoom = ChatRoom.builder()
                 .name(requestDto.getName())
                 .type(ChatRoomType.GROUP)
                 .owner(owner)
+                .roomImageUrl(roomImageUrl)
                 .isActive(true)
                 .build();
 
@@ -59,7 +71,22 @@ public class ChatServiceImpl implements ChatService {
         // 방장을 채팅방에 추가
         addUserToChatRoom(savedChatRoom, owner);
 
-        log.info("채팅방 생성 완료 - ID: {}, 방장: {}", savedChatRoom.getId(), userId);
+        // 초대할 사용자들이 있으면 추가
+        if (requestDto.getUserIds() != null && !requestDto.getUserIds().isEmpty()) {
+            for (Long inviteUserId : requestDto.getUserIds()) {
+                try {
+                    User inviteUser = findUserById(inviteUserId);
+                    addUserToChatRoom(savedChatRoom, inviteUser);
+                    sendSystemMessage(savedChatRoom, inviteUser.getNickname() + "님이 초대되었습니다.");
+                    log.info("사용자 {}를 채팅방 {}에 초대했습니다.", inviteUserId, savedChatRoom.getId());
+                } catch (Exception e) {
+                    log.warn("사용자 {} 초대 실패: {}", inviteUserId, e.getMessage());
+                }
+            }
+        }
+
+        log.info("채팅방 생성 완료 - ID: {}, 방장: {}, 이미지 설정: {}",
+                savedChatRoom.getId(), userId, roomImageUrl != null);
         return buildChatRoomResponse(savedChatRoom, userId);
     }
 

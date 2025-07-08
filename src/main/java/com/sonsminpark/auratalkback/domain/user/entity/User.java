@@ -62,7 +62,9 @@ public class User {
     private UserProfileImage userProfileImage;
 
     public void updateStatus(UserStatus status) {
-        this.status = status;
+        if (this.status != UserStatus.SECRET) {
+            this.status = status;
+        }
     }
 
     public void delete() {

@@ -28,7 +28,6 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -141,7 +140,7 @@ public class ChatServiceImpl implements ChatService {
 
         return chatRooms.stream()
                 .map(chatRoom -> buildChatRoomResponse(chatRoom, userId))
-                .collect(Collectors.toList());
+                .toList();
     }
 
     @Override
@@ -277,7 +276,7 @@ public class ChatServiceImpl implements ChatService {
 
         return searchResults.stream()
                 .map(chatRoom -> buildChatRoomResponse(chatRoom, userId))
-                .collect(Collectors.toList());
+                .toList();
     }
 
     @Override
@@ -535,7 +534,7 @@ public class ChatServiceImpl implements ChatService {
                     }
                     return ChatUserResponseDto.from(roomUser.getUser(), thumbnailUrl);
                 })
-                .collect(Collectors.toList());
+                .toList();
 
         dto.setUsers(users);
 

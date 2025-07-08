@@ -17,7 +17,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -51,7 +50,7 @@ public class InterestService {
                             .interests(InterestResponseDto.fromList(interests))
                             .build();
                 })
-                .collect(Collectors.toList());
+                .toList();
     }
 
     @Transactional(readOnly = true)
@@ -63,7 +62,7 @@ public class InterestService {
 
         List<MyProfileResponseDto> userDtos = users.stream()
                 .map(MyProfileResponseDto::from)
-                .collect(Collectors.toList());
+                .toList();
 
         return InterestUsersResponseDto.builder()
                 .interestName(interestName)

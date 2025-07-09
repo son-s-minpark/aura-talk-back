@@ -4,6 +4,7 @@ import com.sonsminpark.auratalkback.domain.user.entity.User;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.BatchSize;
 
 import java.time.LocalDateTime;
 import java.util.HashSet;
@@ -15,6 +16,18 @@ import java.util.Set;
 @Builder
 @Entity
 @Table(name = "chat_rooms")
+@NamedEntityGraph(
+        name = "ChatRoom.withOwner",
+        attributeNodes = {
+                @NamedAttributeNode(value = "owner", subgraph = "owner.profile")
+        },
+        subgraphs = {
+                @NamedSubgraph(
+                        name = "owner.profile",
+                        attributeNodes = @NamedAttributeNode("userProfileImage")
+                )
+        }
+)
 public class ChatRoom {
 
     @Id
@@ -32,13 +45,14 @@ public class ChatRoom {
     @JoinColumn(name = "owner_id")
     private User owner;
 
-    @ManyToMany
+    @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
             name = "chatroom_banned_users",
             joinColumns = @JoinColumn(name = "chatroom_id"),
             inverseJoinColumns = @JoinColumn(name = "user_id")
     )
     @Builder.Default
+    @BatchSize(size = 10)
     private Set<User> bannedUsers = new HashSet<>();
 
     @Column(nullable = false)

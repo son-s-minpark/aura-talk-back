@@ -64,7 +64,7 @@ public class RandomChatServiceImpl implements RandomChatService {
     }
 
     private User findUserById(Long userId) {
-        return userRepository.findByIdAndIsDeletedFalse(userId)
+        return userRepository.findByIdWithProfileImage(userId)
                 .orElseThrow(() -> UserNotFoundException.of(userId));
     }
 
@@ -199,9 +199,15 @@ public class RandomChatServiceImpl implements RandomChatService {
     private ChatRoomResponseDto buildChatRoomResponse(ChatRoom chatRoom, Long currentUserId) {
         ChatRoomResponseDto dto = ChatRoomResponseDto.from(chatRoom, currentUserId);
 
-        List<ChatRoomUser> roomUsers = chatRoomUserRepository.findAllByChatRoomId(chatRoom.getId());
+        List<ChatRoomUser> roomUsers = chatRoomUserRepository.findAllByChatRoomIdWithUserAndProfile(chatRoom.getId());
+
         List<ChatUserResponseDto> users = roomUsers.stream()
-                .map(roomUser -> buildChatUserResponse(roomUser.getUser()))
+                .map(roomUser -> {
+                    User user = roomUser.getUser();
+                    String thumbnailUrl = user.getUserProfileImage() != null ?
+                            user.getUserProfileImage().getThumbnailImageUrl() : null;
+                    return ChatUserResponseDto.from(user, thumbnailUrl);
+                })
                 .toList();
 
         dto.setUsers(users);
@@ -209,12 +215,8 @@ public class RandomChatServiceImpl implements RandomChatService {
     }
 
     private ChatUserResponseDto buildChatUserResponse(User user) {
-        String thumbnailUrl = null;
-        try {
-            thumbnailUrl = userProfileImageService.getProfileImage(user.getId()).getThumbnailImageUrl();
-        } catch (Exception e) {
-            log.warn("프로필 이미지 조회 실패 - 사용자: {}, 오류: {}", user.getId(), e.getMessage());
-        }
+        String thumbnailUrl = user.getUserProfileImage() != null ?
+                user.getUserProfileImage().getThumbnailImageUrl() : null;
         return ChatUserResponseDto.from(user, thumbnailUrl);
     }
 }

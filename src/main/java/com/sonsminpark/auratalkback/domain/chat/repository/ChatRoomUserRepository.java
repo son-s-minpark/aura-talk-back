@@ -19,8 +19,11 @@ public interface ChatRoomUserRepository extends JpaRepository<ChatRoomUser, Long
 
     void deleteAllByChatRoomId(Long chatRoomId);
 
-    @Query("SELECT cru FROM ChatRoomUser cru JOIN FETCH cru.user WHERE cru.chatRoom.id = :chatRoomId")
-    List<ChatRoomUser> findAllByChatRoomId(@Param("chatRoomId") Long chatRoomId);
+    @Query("SELECT cru FROM ChatRoomUser cru " +
+            "JOIN FETCH cru.user u " +
+            "LEFT JOIN FETCH u.userProfileImage " +
+            "WHERE cru.chatRoom.id = :chatRoomId")
+    List<ChatRoomUser> findAllByChatRoomIdWithUserAndProfile(@Param("chatRoomId") Long chatRoomId);
 
     @Query("SELECT COUNT(cru) FROM ChatRoomUser cru WHERE cru.chatRoom.id = :chatRoomId")
     long countByChatRoomId(@Param("chatRoomId") Long chatRoomId);

@@ -13,11 +13,13 @@ import java.util.Optional;
 @Repository
 public interface ChatRoomRepository extends JpaRepository<ChatRoom, Long> {
 
-    @Query("SELECT cr FROM ChatRoom cr " +
+    @Query("SELECT DISTINCT cr FROM ChatRoom cr " +
+            "LEFT JOIN FETCH cr.owner o " +
+            "LEFT JOIN FETCH o.userProfileImage " +
             "JOIN ChatRoomUser cru ON cr.id = cru.chatRoom.id " +
             "WHERE cru.user.id = :userId " +
             "ORDER BY cr.lastMessageAt DESC")
-    List<ChatRoom> findActiveByUserId(@Param("userId") Long userId);
+    List<ChatRoom> findActiveByUserIdWithOwner(@Param("userId") Long userId);
 
     @Query("SELECT cr FROM ChatRoom cr " +
             "JOIN ChatRoomUser cru1 ON cr.id = cru1.chatRoom.id " +
@@ -50,4 +52,10 @@ public interface ChatRoomRepository extends JpaRepository<ChatRoom, Long> {
             "OR LOWER(u.username) LIKE LOWER(CONCAT('%', :keyword, '%'))) " +
             "ORDER BY cr.lastMessageAt DESC")
     List<ChatRoom> searchByNameAndUserId(@Param("keyword") String keyword, @Param("userId") Long userId);
+
+    @Query("SELECT cr FROM ChatRoom cr " +
+            "LEFT JOIN FETCH cr.owner o " +
+            "LEFT JOIN FETCH o.userProfileImage " +
+            "WHERE cr.id = :chatRoomId")
+    Optional<ChatRoom> findByIdWithOwner(@Param("chatRoomId") Long chatRoomId);
 }

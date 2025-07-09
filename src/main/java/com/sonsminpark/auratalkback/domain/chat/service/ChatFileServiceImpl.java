@@ -3,12 +3,11 @@ package com.sonsminpark.auratalkback.domain.chat.service;
 import com.sonsminpark.auratalkback.domain.chat.dto.request.ChatFileUploadRequestDto;
 import com.sonsminpark.auratalkback.domain.chat.dto.response.ChatFileDownloadResponseDto;
 import com.sonsminpark.auratalkback.domain.chat.dto.response.ChatFileResponseDto;
-import com.sonsminpark.auratalkback.domain.chat.entity.*;
-import com.sonsminpark.auratalkback.domain.chat.exception.ChatAccessDeniedException;
-import com.sonsminpark.auratalkback.domain.chat.exception.ChatRoomNotFoundException;
-import com.sonsminpark.auratalkback.domain.chat.exception.InvalidChatRoomStateException;
-import com.sonsminpark.auratalkback.domain.chat.exception.ChatFileNotFoundException;
-import com.sonsminpark.auratalkback.domain.chat.exception.ChatFileUploadException;
+import com.sonsminpark.auratalkback.domain.chat.entity.ChatFile;
+import com.sonsminpark.auratalkback.domain.chat.entity.ChatMessage;
+import com.sonsminpark.auratalkback.domain.chat.entity.ChatRoom;
+import com.sonsminpark.auratalkback.domain.chat.entity.MessageType;
+import com.sonsminpark.auratalkback.domain.chat.exception.*;
 import com.sonsminpark.auratalkback.domain.chat.repository.ChatFileRepository;
 import com.sonsminpark.auratalkback.domain.chat.repository.ChatMessageRepository;
 import com.sonsminpark.auratalkback.domain.chat.repository.ChatRoomRepository;
@@ -16,7 +15,6 @@ import com.sonsminpark.auratalkback.domain.chat.repository.ChatRoomUserRepositor
 import com.sonsminpark.auratalkback.domain.user.entity.User;
 import com.sonsminpark.auratalkback.domain.user.exception.UserNotFoundException;
 import com.sonsminpark.auratalkback.domain.user.repository.UserRepository;
-import com.sonsminpark.auratalkback.domain.user.service.UserProfileImageService;
 import com.sonsminpark.auratalkback.global.s3.FileUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -47,7 +45,6 @@ public class ChatFileServiceImpl implements ChatFileService {
     private final ChatRoomUserRepository chatRoomUserRepository;
     private final ChatMessageRepository chatMessageRepository;
     private final UserRepository userRepository;
-    private final UserProfileImageService userProfileImageService;
     private final SimpMessagingTemplate messagingTemplate;
     private final S3Presigner s3Presigner;
 
@@ -122,8 +119,9 @@ public class ChatFileServiceImpl implements ChatFileService {
 
         chatRoom.updateLastMessageAt();
 
-        // WebSocket으로 실시간 전송
-        String uploaderThumbnailUrl = getUserThumbnailUrl(uploader.getId());
+        String uploaderThumbnailUrl = uploader.getUserProfileImage() != null ?
+                uploader.getUserProfileImage().getThumbnailImageUrl() : null;
+
         ChatFileResponseDto responseDto = ChatFileResponseDto.from(savedChatFile, uploaderThumbnailUrl);
 
         messagingTemplate.convertAndSend("/topic/chatroom/" + chatroomId + "/files", responseDto);
@@ -174,11 +172,13 @@ public class ChatFileServiceImpl implements ChatFileService {
         validateChatRoomAccess(chatroomId, userId);
 
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
-        Page<ChatFile> chatFiles = chatFileRepository.findByChatRoomIdAndIsDeletedFalse(chatroomId, pageable);
+
+        Page<ChatFile> chatFiles = chatFileRepository.findByChatRoomIdWithUploader(chatroomId, pageable);
 
         return chatFiles.stream()
                 .map(chatFile -> {
-                    String uploaderThumbnailUrl = getUserThumbnailUrl(chatFile.getUploader().getId());
+                    String uploaderThumbnailUrl = chatFile.getUploader().getUserProfileImage() != null ?
+                            chatFile.getUploader().getUserProfileImage().getThumbnailImageUrl() : null;
                     return ChatFileResponseDto.from(chatFile, uploaderThumbnailUrl);
                 })
                 .toList();
@@ -212,15 +212,6 @@ public class ChatFileServiceImpl implements ChatFileService {
                 .orElseThrow(() -> UserNotFoundException.of(userId));
     }
 
-    private String getUserThumbnailUrl(Long userId) {
-        try {
-            return userProfileImageService.getProfileImage(userId).getThumbnailImageUrl();
-        } catch (Exception e) {
-            log.warn("프로필 이미지 조회 실패 - 사용자: {}, 오류: {}", userId, e.getMessage());
-            return null;
-        }
-    }
-
     private MessageType determineMessageType(String mimeType) {
         if (mimeType.startsWith("image/")) {
             return MessageType.IMAGE;
@@ -231,12 +222,5 @@ public class ChatFileServiceImpl implements ChatFileService {
         } else {
             return MessageType.FILE;
         }
-    }
-
-    private String createFileMessageContent(String fileName, String description) {
-        if (description != null && !description.trim().isEmpty()) {
-            return fileName + "\n" + description.trim();
-        }
-        return fileName;
     }
 }

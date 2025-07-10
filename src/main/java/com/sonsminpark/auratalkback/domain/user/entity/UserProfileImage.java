@@ -39,4 +39,9 @@ public class UserProfileImage {
         this.thumbnailImageUrl = thumbnailImageUrl;
         this.isDefaultProfileImage = isDefaultProfileImage;
     }
+
+    void setUser(User user) {
+        this.user = user;
+        this.userId = user != null ? user.getId() : null;
+    }
 }

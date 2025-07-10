@@ -1,0 +1,371 @@
+/usr/sbin/mysqld, Version: 8.0.42 (MySQL Community Server - GPL). started with:
+Tcp port: 3306  Unix socket: /var/run/mysqld/mysqld.sock
+Time                 Id Command    Argument
+/usr/sbin/mysqld, Version: 8.0.42 (MySQL Community Server - GPL). started with:
+Tcp port: 3306  Unix socket: /var/run/mysqld/mysqld.sock
+Time                 Id Command    Argument
+/usr/sbin/mysqld, Version: 8.0.42 (MySQL Community Server - GPL). started with:
+Tcp port: 0  Unix socket: /var/run/mysqld/mysqld.sock
+Time                 Id Command    Argument
+/usr/sbin/mysqld, Version: 8.0.42 (MySQL Community Server - GPL). started with:
+Tcp port: 0  Unix socket: /var/run/mysqld/mysqld.sock
+Time                 Id Command    Argument
+/usr/sbin/mysqld, Version: 8.0.42 (MySQL Community Server - GPL). started with:
+Tcp port: 3306  Unix socket: /var/run/mysqld/mysqld.sock
+Time                 Id Command    Argument
+# Time: 2025-07-09T12:59:03.027249Z
+# User@Host: root[root] @  [172.18.0.1]  Id:    18
+# Query_time: 0.000410  Lock_time: 0.000002 Rows_sent: 0  Rows_examined: 21
+use auratalk;
+SET timestamp=1752065943;
+select u1_0.id from users u1_0 where u1_0.username='testuser' and not(u1_0.is_deleted) limit 1;
+# Time: 2025-07-09T12:59:03.029342Z
+# User@Host: root[root] @  [172.18.0.1]  Id:    18
+# Query_time: 0.000349  Lock_time: 0.000003 Rows_sent: 0  Rows_examined: 21
+SET timestamp=1752065943;
+select u1_0.id from users u1_0 where u1_0.nickname='테스트유저' and not(u1_0.is_deleted) limit 1;
+# Time: 2025-07-09T13:06:17.518182Z
+# User@Host: root[root] @  [172.18.0.1]  Id:    28
+# Query_time: 0.001577  Lock_time: 0.000005 Rows_sent: 5  Rows_examined: 16
+SET timestamp=1752066377;
+/* ApplicationName=IntelliJ IDEA 2024.2.0.2 */ select schema_name, default_collation_name
+        from information_schema.schemata;
+# Time: 2025-07-09T13:06:17.569382Z
+# User@Host: root[root] @  [172.18.0.1]  Id:    28
+# Query_time: 0.000531  Lock_time: 0.000003 Rows_sent: 5  Rows_examined: 16
+SET timestamp=1752066377;
+/* ApplicationName=IntelliJ IDEA 2024.2.0.2 */ select schema_name, default_collation_name
+        from information_schema.schemata;
+# Time: 2025-07-09T13:06:17.685576Z
+# User@Host: root[root] @  [172.18.0.1]  Id:    28
+# Query_time: 0.003017  Lock_time: 0.000009 Rows_sent: 36  Rows_examined: 894
+SET timestamp=1752066377;
+/* ApplicationName=IntelliJ IDEA 2024.2.0.2 */ select
+          table_name,
+          index_name,
+          index_comment,
+          index_type,
+          non_unique,
+          column_name,
+          sub_part,
+          collation,
+          expression
+        from information_schema.statistics
+        where table_schema = 'auratalk' and
+              index_schema = 'auratalk'
+        order by
+          index_schema,
+          table_name,
+          index_name,
+          index_type,
+          seq_in_index;
+# Time: 2025-07-09T13:06:17.707697Z
+# User@Host: root[root] @  [172.18.0.1]  Id:    28
+# Query_time: 0.001122  Lock_time: 0.000005 Rows_sent: 37  Rows_examined: 52
+SET timestamp=1752066377;
+/* ApplicationName=IntelliJ IDEA 2024.2.0.2 */ select
+          c.constraint_name,
+          c.constraint_schema,
+          c.table_name,
+          c.constraint_type,
+          c.enforced = 'YES' enforced
+        from information_schema.table_constraints c
+          where c.table_schema = 'auratalk';
+# Time: 2025-07-09T13:06:17.734867Z
+# User@Host: root[root] @  [172.18.0.1]  Id:    28
+# Query_time: 0.001150  Lock_time: 0.000006 Rows_sent: 21  Rows_examined: 78
+SET timestamp=1752066377;
+/* ApplicationName=IntelliJ IDEA 2024.2.0.2 */ select
+        constraint_name,
+        table_name,
+        column_name,
+        referenced_table_schema,
+        referenced_table_name,
+        referenced_column_name
+      from information_schema.key_column_usage
+      where table_schema = 'auratalk' and referenced_column_name is not null
+      order by
+          table_name
+        , constraint_name
+        , ordinal_position;
+# Time: 2025-07-09T13:06:17.772941Z
+# User@Host: root[root] @  [172.18.0.1]  Id:    28
+# Query_time: 0.001232  Lock_time: 0.000006 Rows_sent: 0  Rows_examined: 14
+SET timestamp=1752066377;
+/* ApplicationName=IntelliJ IDEA 2024.2.0.2 */ select
+          trigger_name,
+          event_object_table,
+          event_manipulation,
+          action_timing,
+          definer
+        from information_schema.triggers
+        where trigger_schema = 'auratalk';
+# Time: 2025-07-09T13:06:17.783423Z
+# User@Host: root[root] @  [172.18.0.1]  Id:    28
+# Query_time: 0.001191  Lock_time: 0.000012 Rows_sent: 0  Rows_examined: 0
+SET timestamp=1752066377;
+/* ApplicationName=IntelliJ IDEA 2024.2.0.2 */ select
+          event_name,
+          event_comment,
+          definer,
+          event_type = 'RECURRING' recurring,
+          interval_value,
+          interval_field,
+          cast(coalesce(starts, execute_at) as char) starts,
+          cast(ends as char) ends,
+          status,
+          on_completion = 'PRESERVE' preserve,
+          last_executed
+        from information_schema.events
+        where event_schema = 'auratalk';
+# Time: 2025-07-09T13:06:17.808611Z
+# User@Host: root[root] @  [172.18.0.1]  Id:    28
+# Query_time: 0.000417  Lock_time: 0.000002 Rows_sent: 0  Rows_examined: 0
+SET timestamp=1752066377;
+/* ApplicationName=IntelliJ IDEA 2024.2.0.2 */ select Host, User, Routine_name, Proc_priv, Routine_type = 'PROCEDURE' as is_proc
+    from mysql.procs_priv where Db = 'auratalk';
+# Time: 2025-07-09T13:06:17.816385Z
+# User@Host: root[root] @  [172.18.0.1]  Id:    28
+# Query_time: 0.000404  Lock_time: 0.000000 Rows_sent: 0  Rows_examined: 2
+SET timestamp=1752066377;
+/* ApplicationName=IntelliJ IDEA 2024.2.0.2 */ select grantee, table_name, column_name, privilege_type, is_grantable
+      from information_schema.column_privileges
+      where table_schema = 'auratalk'
+      union all
+      select grantee, table_name, '' column_name, privilege_type, is_grantable
+      from information_schema.table_privileges
+      where table_schema = 'auratalk'
+      order by table_name, grantee, privilege_type;
+# Time: 2025-07-09T13:06:17.860618Z
+# User@Host: root[root] @  [172.18.0.1]  Id:    28
+# Query_time: 0.002039  Lock_time: 0.000005 Rows_sent: 286  Rows_examined: 327
+SET timestamp=1752066377;
+/* ApplicationName=IntelliJ IDEA 2024.2.0.2 */ select collation_name, character_set_name,
+          lower(is_default) = 'yes' as is_default
+        from information_schema.collations;
+# Time: 2025-07-09T13:06:17.880022Z
+# User@Host: root[root] @  [172.18.0.1]  Id:    28
+# Query_time: 0.000356  Lock_time: 0.000002 Rows_sent: 5  Rows_examined: 5
+SET timestamp=1752066377;
+/* ApplicationName=IntelliJ IDEA 2024.2.0.2 */ select Host, User,
+       ssl_type, ssl_cipher, x509_issuer, x509_subject,
+       max_questions, max_updates, max_connections, max_user_connections, plugin, authentication_string, account_locked is_role
+      from mysql.user;
+# Time: 2025-07-09T13:06:17.890431Z
+# User@Host: root[root] @  [172.18.0.1]  Id:    28
+# Query_time: 0.000440  Lock_time: 0.000001 Rows_sent: 152  Rows_examined: 152
+SET timestamp=1752066377;
+/* ApplicationName=IntelliJ IDEA 2024.2.0.2 */ select grantee, privilege_type, is_grantable from information_schema.user_privileges;
+# Time: 2025-07-09T13:06:17.904296Z
+# User@Host: root[root] @  [172.18.0.1]  Id:    28
+# Query_time: 0.000284  Lock_time: 0.000000 Rows_sent: 2  Rows_examined: 2
+SET timestamp=1752066377;
+/* ApplicationName=IntelliJ IDEA 2024.2.0.2 */ select grantee, table_schema, privilege_type, is_grantable from information_schema.schema_privileges;
+# Time: 2025-07-09T13:06:17.924418Z
+# User@Host: root[root] @  [172.18.0.1]  Id:    28
+# Query_time: 0.000575  Lock_time: 0.000002 Rows_sent: 0  Rows_examined: 0
+SET timestamp=1752066377;
+/* ApplicationName=IntelliJ IDEA 2024.2.0.2 */ select from_host, from_user, to_host, to_user, with_admin_option from mysql.role_edges order by to_user, to_host;
+# Time: 2025-07-09T13:06:19.832717Z
+# User@Host: root[root] @  [172.18.0.1]  Id:    29
+# Query_time: 0.000413  Lock_time: 0.000002 Rows_sent: 21  Rows_examined: 21
+SET timestamp=1752066379;
+/* ApplicationName=IntelliJ IDEA 2024.2.0.2 */ SELECT t.*
+FROM auratalk.users t
+LIMIT 501;
+# Time: 2025-07-09T13:11:40.553421Z
+# User@Host: root[root] @  [172.18.0.1]  Id:    29
+# Query_time: 0.000562  Lock_time: 0.000002 Rows_sent: 20  Rows_examined: 20
+SET timestamp=1752066700;
+/* ApplicationName=IntelliJ IDEA 2024.2.0.2 */ SELECT t.*
+FROM auratalk.users t
+LIMIT 501;
+/usr/sbin/mysqld, Version: 8.0.42 (MySQL Community Server - GPL). started with:
+Tcp port: 3306  Unix socket: /var/run/mysqld/mysqld.sock
+Time                 Id Command    Argument
+# Time: 2025-07-09T16:10:55.332857Z
+# User@Host: root[root] @  [172.18.0.1]  Id:     8
+# Query_time: 0.000529  Lock_time: 0.000002 Rows_sent: 0  Rows_examined: 21
+use auratalk;
+SET timestamp=1752077455;
+select u1_0.id from users u1_0 where u1_0.username='testuser' and not(u1_0.is_deleted) limit 1;
+# Time: 2025-07-09T16:10:55.336156Z
+# User@Host: root[root] @  [172.18.0.1]  Id:     8
+# Query_time: 0.000773  Lock_time: 0.000002 Rows_sent: 0  Rows_examined: 21
+SET timestamp=1752077455;
+select u1_0.id from users u1_0 where u1_0.nickname='테스트유저' and not(u1_0.is_deleted) limit 1;
+# Time: 2025-07-09T16:11:06.939229Z
+# User@Host: root[root] @  [172.18.0.1]  Id:    18
+# Query_time: 0.001386  Lock_time: 0.000006 Rows_sent: 5  Rows_examined: 16
+SET timestamp=1752077466;
+/* ApplicationName=IntelliJ IDEA 2024.2.0.2 */ select schema_name, default_collation_name
+        from information_schema.schemata;
+# Time: 2025-07-09T16:11:07.003996Z
+# User@Host: root[root] @  [172.18.0.1]  Id:    18
+# Query_time: 0.000615  Lock_time: 0.000004 Rows_sent: 5  Rows_examined: 16
+SET timestamp=1752077467;
+/* ApplicationName=IntelliJ IDEA 2024.2.0.2 */ select schema_name, default_collation_name
+        from information_schema.schemata;
+# Time: 2025-07-09T16:11:07.134571Z
+# User@Host: root[root] @  [172.18.0.1]  Id:    18
+# Query_time: 0.001977  Lock_time: 0.000005 Rows_sent: 36  Rows_examined: 894
+SET timestamp=1752077467;
+/* ApplicationName=IntelliJ IDEA 2024.2.0.2 */ select
+          table_name,
+          index_name,
+          index_comment,
+          index_type,
+          non_unique,
+          column_name,
+          sub_part,
+          collation,
+          expression
+        from information_schema.statistics
+        where table_schema = 'auratalk' and
+              index_schema = 'auratalk'
+        order by
+          index_schema,
+          table_name,
+          index_name,
+          index_type,
+          seq_in_index;
+# Time: 2025-07-09T16:11:07.159693Z
+# User@Host: root[root] @  [172.18.0.1]  Id:    18
+# Query_time: 0.001491  Lock_time: 0.000007 Rows_sent: 37  Rows_examined: 52
+SET timestamp=1752077467;
+/* ApplicationName=IntelliJ IDEA 2024.2.0.2 */ select
+          c.constraint_name,
+          c.constraint_schema,
+          c.table_name,
+          c.constraint_type,
+          c.enforced = 'YES' enforced
+        from information_schema.table_constraints c
+          where c.table_schema = 'auratalk';
+# Time: 2025-07-09T16:11:07.225978Z
+# User@Host: root[root] @  [172.18.0.1]  Id:    18
+# Query_time: 0.002545  Lock_time: 0.000006 Rows_sent: 21  Rows_examined: 78
+SET timestamp=1752077467;
+/* ApplicationName=IntelliJ IDEA 2024.2.0.2 */ select
+        constraint_name,
+        table_name,
+        column_name,
+        referenced_table_schema,
+        referenced_table_name,
+        referenced_column_name
+      from information_schema.key_column_usage
+      where table_schema = 'auratalk' and referenced_column_name is not null
+      order by
+          table_name
+        , constraint_name
+        , ordinal_position;
+# Time: 2025-07-09T16:11:07.263104Z
+# User@Host: root[root] @  [172.18.0.1]  Id:    18
+# Query_time: 0.001227  Lock_time: 0.000007 Rows_sent: 0  Rows_examined: 14
+SET timestamp=1752077467;
+/* ApplicationName=IntelliJ IDEA 2024.2.0.2 */ select
+          trigger_name,
+          event_object_table,
+          event_manipulation,
+          action_timing,
+          definer
+        from information_schema.triggers
+        where trigger_schema = 'auratalk';
+# Time: 2025-07-09T16:11:07.275297Z
+# User@Host: root[root] @  [172.18.0.1]  Id:    18
+# Query_time: 0.001496  Lock_time: 0.000008 Rows_sent: 0  Rows_examined: 0
+SET timestamp=1752077467;
+/* ApplicationName=IntelliJ IDEA 2024.2.0.2 */ select
+          event_name,
+          event_comment,
+          definer,
+          event_type = 'RECURRING' recurring,
+          interval_value,
+          interval_field,
+          cast(coalesce(starts, execute_at) as char) starts,
+          cast(ends as char) ends,
+          status,
+          on_completion = 'PRESERVE' preserve,
+          last_executed
+        from information_schema.events
+        where event_schema = 'auratalk';
+# Time: 2025-07-09T16:11:07.303116Z
+# User@Host: root[root] @  [172.18.0.1]  Id:    18
+# Query_time: 0.000474  Lock_time: 0.000002 Rows_sent: 0  Rows_examined: 0
+SET timestamp=1752077467;
+/* ApplicationName=IntelliJ IDEA 2024.2.0.2 */ select Host, User, Routine_name, Proc_priv, Routine_type = 'PROCEDURE' as is_proc
+    from mysql.procs_priv where Db = 'auratalk';
+# Time: 2025-07-09T16:11:07.310919Z
+# User@Host: root[root] @  [172.18.0.1]  Id:    18
+# Query_time: 0.000496  Lock_time: 0.000001 Rows_sent: 0  Rows_examined: 2
+SET timestamp=1752077467;
+/* ApplicationName=IntelliJ IDEA 2024.2.0.2 */ select grantee, table_name, column_name, privilege_type, is_grantable
+      from information_schema.column_privileges
+      where table_schema = 'auratalk'
+      union all
+      select grantee, table_name, '' column_name, privilege_type, is_grantable
+      from information_schema.table_privileges
+      where table_schema = 'auratalk'
+      order by table_name, grantee, privilege_type;
+# Time: 2025-07-09T16:11:07.320965Z
+# User@Host: root[root] @  [172.18.0.1]  Id:    18
+# Query_time: 0.002991  Lock_time: 0.000012 Rows_sent: 0  Rows_examined: 168
+SET timestamp=1752077467;
+/* ApplicationName=IntelliJ IDEA 2024.2.0.2 */ select specific_name,
+        ordinal_position,
+        parameter_name,
+        parameter_mode,
+        dtd_identifier
+      from information_schema.parameters
+      where specific_schema = 'auratalk' and ordinal_position > 0
+      order by specific_name, ordinal_position;
+# Time: 2025-07-09T16:11:07.362723Z
+# User@Host: root[root] @  [172.18.0.1]  Id:    18
+# Query_time: 0.001373  Lock_time: 0.000005 Rows_sent: 286  Rows_examined: 327
+SET timestamp=1752077467;
+/* ApplicationName=IntelliJ IDEA 2024.2.0.2 */ select collation_name, character_set_name,
+          lower(is_default) = 'yes' as is_default
+        from information_schema.collations;
+# Time: 2025-07-09T16:11:07.388624Z
+# User@Host: root[root] @  [172.18.0.1]  Id:    18
+# Query_time: 0.001188  Lock_time: 0.000001 Rows_sent: 5  Rows_examined: 5
+SET timestamp=1752077467;
+/* ApplicationName=IntelliJ IDEA 2024.2.0.2 */ select Host, User,
+       ssl_type, ssl_cipher, x509_issuer, x509_subject,
+       max_questions, max_updates, max_connections, max_user_connections, plugin, authentication_string, account_locked is_role
+      from mysql.user;
+# Time: 2025-07-09T16:11:07.403604Z
+# User@Host: root[root] @  [172.18.0.1]  Id:    18
+# Query_time: 0.000486  Lock_time: 0.000000 Rows_sent: 152  Rows_examined: 152
+SET timestamp=1752077467;
+/* ApplicationName=IntelliJ IDEA 2024.2.0.2 */ select grantee, privilege_type, is_grantable from information_schema.user_privileges;
+# Time: 2025-07-09T16:11:07.421656Z
+# User@Host: root[root] @  [172.18.0.1]  Id:    18
+# Query_time: 0.000577  Lock_time: 0.000001 Rows_sent: 2  Rows_examined: 2
+SET timestamp=1752077467;
+/* ApplicationName=IntelliJ IDEA 2024.2.0.2 */ select grantee, table_schema, privilege_type, is_grantable from information_schema.schema_privileges;
+# Time: 2025-07-09T16:11:07.437709Z
+# User@Host: root[root] @  [172.18.0.1]  Id:    18
+# Query_time: 0.000475  Lock_time: 0.000002 Rows_sent: 0  Rows_examined: 0
+SET timestamp=1752077467;
+/* ApplicationName=IntelliJ IDEA 2024.2.0.2 */ select from_host, from_user, to_host, to_user, with_admin_option from mysql.role_edges order by to_user, to_host;
+# Time: 2025-07-09T16:11:24.340908Z
+# User@Host: root[root] @  [172.18.0.1]  Id:    19
+# Query_time: 0.000517  Lock_time: 0.000009 Rows_sent: 21  Rows_examined: 21
+SET timestamp=1752077484;
+/* ApplicationName=IntelliJ IDEA 2024.2.0.2 */ SELECT t.*
+FROM auratalk.users t
+LIMIT 501;
+/usr/sbin/mysqld, Version: 8.0.42 (MySQL Community Server - GPL). started with:
+Tcp port: 3306  Unix socket: /var/run/mysqld/mysqld.sock
+Time                 Id Command    Argument
+# Time: 2025-07-10T09:03:08.016469Z
+# User@Host: root[root] @  [172.18.0.1]  Id:     8
+# Query_time: 0.000387  Lock_time: 0.000002 Rows_sent: 0  Rows_examined: 21
+use auratalk;
+SET timestamp=1752138188;
+select u1_0.id from users u1_0 where u1_0.username='testuser' and not(u1_0.is_deleted) limit 1;
+# Time: 2025-07-10T09:03:08.018445Z
+# User@Host: root[root] @  [172.18.0.1]  Id:     8
+# Query_time: 0.000317  Lock_time: 0.000001 Rows_sent: 0  Rows_examined: 21
+SET timestamp=1752138188;
+select u1_0.id from users u1_0 where u1_0.nickname='테스트유저' and not(u1_0.is_deleted) limit 1;

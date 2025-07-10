@@ -18,6 +18,10 @@ public class ProfileImageResponseDto {
     private boolean isDefaultProfileImage;
 
     public static ProfileImageResponseDto from(UserProfileImage userProfileImage) {
+        if (userProfileImage == null) {
+            return null;
+        }
+
         return ProfileImageResponseDto.builder()
                 .userId(userProfileImage.getUserId())
                 .originalImageUrl(userProfileImage.getOriginalImageUrl())

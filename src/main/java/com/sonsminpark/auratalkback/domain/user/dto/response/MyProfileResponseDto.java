@@ -1,13 +1,11 @@
 package com.sonsminpark.auratalkback.domain.user.dto.response;
 
 import com.sonsminpark.auratalkback.domain.user.entity.User;
-import com.sonsminpark.auratalkback.domain.user.entity.UserStatus;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
 import java.util.List;
 
 @Getter
@@ -22,9 +20,10 @@ public class MyProfileResponseDto {
     private String nickname;
     private String description;
     private List<String> interests;
-    private UserStatus status;
+    private String status;
+    private boolean isDeleted;
+    private boolean emailVerified;
     private boolean randomChatEnabled;
-    private LocalDateTime createdAt;
     private ProfileImageResponseDto profileImage;
 
     public static MyProfileResponseDto from(User user) {
@@ -35,10 +34,11 @@ public class MyProfileResponseDto {
                 .nickname(user.getNickname())
                 .description(user.getDescription())
                 .interests(user.getInterests())
-                .status(user.getStatus())
+                .status(user.getStatus().name())
+                .isDeleted(user.isDeleted())
+                .emailVerified(user.isEmailVerified())
                 .randomChatEnabled(user.isRandomChatEnabled())
-                .createdAt(user.getCreatedAt())
-                .profileImage(ProfileImageResponseDto.from(user.getUserProfileImage()))
+                .profileImage(ProfileImageResponseDto.from(user.getUserProfileImage())) // null이면 null 반환
                 .build();
     }
 }

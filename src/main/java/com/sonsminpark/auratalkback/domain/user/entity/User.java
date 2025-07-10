@@ -118,12 +118,18 @@ public class User {
         this.status = UserStatus.OFFLINE;
     }
 
-    // 탈퇴한 사용자 정보 익명화
     public void anonymize() {
         this.email = "deleted_" + this.id + "_" + System.currentTimeMillis() + "@deleted.com";
         this.username = "탈퇴회원";
         this.nickname = "탈퇴회원";
         this.password = "";
         this.userInterests.clear();
+    }
+
+    public void setUserProfileImage(UserProfileImage userProfileImage) {
+        this.userProfileImage = userProfileImage;
+        if (userProfileImage != null) {
+            userProfileImage.setUser(this);
+        }
     }
 }

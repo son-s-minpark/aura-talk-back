@@ -17,13 +17,12 @@ import com.sonsminpark.auratalkback.domain.user.repository.UserRepository;
 import com.sonsminpark.auratalkback.global.jwt.JwtTokenProvider;
 import com.sonsminpark.auratalkback.global.security.TokenBlacklistService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
-//import java.util.concurrent.TimeUnit;
-
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class UserServiceImpl implements UserService {
@@ -63,9 +62,7 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional
     public void logout(String token) {
-
         String email = jwtTokenProvider.getEmailFromToken(token);
-
 
         User user = userRepository.findByEmailAndIsDeletedFalse(email)
                 .orElseThrow(() -> UserNotFoundException.of(email, "존재하지 않는 사용자입니다."));
@@ -101,6 +98,9 @@ public class UserServiceImpl implements UserService {
 
         userProfileImageService.createDefaultProfileImage(savedUser.getId());
 
+        User userWithProfile = userRepository.findByIdWithProfileImage(savedUser.getId())
+                .orElseThrow(() -> UserNotFoundException.of(savedUser.getId()));
+
         // TODO: 이메일 인증 활성화 시 아래 주석 제거하기
 //        String verificationToken = emailService.generateVerificationToken(savedUser.getEmail());
 //        emailService.sendVerificationEmail(savedUser.getEmail(), verificationToken);
@@ -111,7 +111,7 @@ public class UserServiceImpl implements UserService {
         return SignUpResponseDto.builder()
                 .userId(savedUser.getId())
                 .token(token)
-                .user(MyProfileResponseDto.from(savedUser))
+                .user(MyProfileResponseDto.from(userWithProfile))
                 .build();
     }
 
@@ -225,7 +225,6 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional(readOnly = true)
     public UserProfileResponseDto getUserProfile(Long currentUserId, Long targetUserId) {
-
         User user = userRepository.findByIdWithProfileImage(targetUserId)
                 .orElseThrow(() -> UserNotFoundException.of(targetUserId));
 

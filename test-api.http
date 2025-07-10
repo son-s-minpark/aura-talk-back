@@ -1,0 +1,59 @@
+### 1. 회원가입
+POST http://localhost:8080/api/users
+Content-Type: application/json
+
+{
+  "email": "test@example.com",
+  "password": "Test123!"
+}
+
+### 2. 로그인
+POST http://localhost:8080/api/users/login
+Content-Type: application/json
+
+{
+  "email": "user2@example.com",
+  "password": "Test123!"
+}
+
+> {%
+    client.global.set("authToken", response.body.data.token);
+%}
+
+### 3. 프로필 설정
+PUT http://localhost:8080/api/users/profile
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "username": "testuser",
+  "nickname": "테스트유저",
+  "description": "안녕하세요",
+  "interests": ["게임", "독서"]
+}
+
+### 4. 채팅방 생성
+POST http://localhost:8080/api/chatrooms
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "name": "테스트 채팅방",
+  "userIds": []
+}
+
+> {%
+    client.global.set("chatroomId", response.body.data.id);
+%}
+
+### 5. 채팅방 목록 조회 (N+1 테스트)
+GET http://localhost:8080/api/chatrooms
+Authorization: Bearer {{authToken}}
+
+### 6. 메시지 목록 조회 (N+1 테스트)
+GET http://localhost:8080/api/chats/1?page=0&size=50
+Authorization: Bearer {{authToken}}
+
+### 7. 내 프로필 조회
+GET http://localhost:8080/api/users/me/profile
+Authorization: Bearer {{authToken}}

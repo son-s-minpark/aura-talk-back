@@ -1,30 +1,30 @@
 services:
-  app:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: auratalk-app
-    ports:
-      - "${SERVER_PORT}:${SERVER_PORT}"
-    depends_on:
-      - db
-      - redis
-    env_file:
-      - .env
-    environment:
-      - SPRING_DATASOURCE_URL=${DB_URL}
-      - SPRING_DATASOURCE_USERNAME=${DB_USERNAME}
-      - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD}
-      - SPRING_JPA_HIBERNATE_DDL_AUTO=${JPA_DDL_AUTO}
-      - SPRING_JPA_SHOW_SQL=${SHOW_SQL}
-      - SPRING_DATA_REDIS_HOST=${REDIS_HOST}
-      - SPRING_DATA_REDIS_PORT=${REDIS_PORT}
-      - SPRING_DATA_REDIS_PASSWORD=${REDIS_PASSWORD}
-      - JWT_SECRET=${JWT_SECRET}
-      - JWT_EXPIRATION=${JWT_EXPIRATION}
-    restart: always
-    networks:
-      - auratalk-network
+#  app:
+#    build:
+#      context: .
+#      dockerfile: Dockerfile
+#    container_name: auratalk-app
+#    ports:
+#      - "${SERVER_PORT}:${SERVER_PORT}"
+#    depends_on:
+#      - db
+#      - redis
+#    env_file:
+#      - .env
+#    environment:
+#      - SPRING_DATASOURCE_URL=${DB_URL}
+#      - SPRING_DATASOURCE_USERNAME=${DB_USERNAME}
+#      - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD}
+#      - SPRING_JPA_HIBERNATE_DDL_AUTO=${JPA_DDL_AUTO}
+#      - SPRING_JPA_SHOW_SQL=${SHOW_SQL}
+#      - SPRING_DATA_REDIS_HOST=${REDIS_HOST}
+#      - SPRING_DATA_REDIS_PORT=${REDIS_PORT}
+#      - SPRING_DATA_REDIS_PASSWORD=${REDIS_PASSWORD}
+#      - JWT_SECRET=${JWT_SECRET}
+#      - JWT_EXPIRATION=${JWT_EXPIRATION}
+#    restart: always
+#    networks:
+#      - auratalk-network
 
   db:
     image: mysql:8.0
@@ -34,9 +34,17 @@ services:
     environment:
       - MYSQL_ROOT_PASSWORD=${DB_PASSWORD}
       - MYSQL_DATABASE=${DB_NAME}
-    command: --default-authentication-plugin=mysql_native_password
+    command:
+      - --default-authentication-plugin=mysql_native_password
+      - --general-log=1
+      - --general-log-file=/var/log/mysql/general.log
+      - --slow-query-log=1
+      - --slow-query-log-file=/var/log/mysql/slow.log
+      - --long-query-time=0.1
+      - --log-queries-not-using-indexes=1
     volumes:
       - mysql-data:/var/lib/mysql
+      - ./mysql-logs:/var/log/mysql
     restart: always
     networks:
       - auratalk-network
@@ -56,3 +64,4 @@ networks:
 
 volumes:
   mysql-data:
+  mysql-logs:

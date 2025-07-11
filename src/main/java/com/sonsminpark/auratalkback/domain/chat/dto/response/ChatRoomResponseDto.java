@@ -29,6 +29,10 @@ public class ChatRoomResponseDto {
     private String inviteCode;
     private LocalDateTime inviteCodeExpiredAt;
 
+    public boolean isOwner() {
+        return this.isOwner;
+    }
+
     public static ChatRoomResponseDto from(ChatRoom chatRoom) {
         return ChatRoomResponseDto.builder()
                 .id(chatRoom.getId())

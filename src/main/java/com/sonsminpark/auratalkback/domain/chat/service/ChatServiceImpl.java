@@ -48,6 +48,20 @@ public class ChatServiceImpl implements ChatService {
     @Value("${cloud.aws.s3.bucket}")
     private String bucketName;
 
+    private static final int DEFAULT_GROUP_IMAGE_COUNT = 2;
+
+    private record DefaultGroupImage(String originalUrl, String thumbnailUrl) {
+    }
+
+    private DefaultGroupImage getDefaultGroupImage(Long chatRoomId) {
+        int index = Math.toIntExact(chatRoomId % DEFAULT_GROUP_IMAGE_COUNT) + 1;
+        String prefix = "https://" + bucketName + ".s3.amazonaws.com/group-images/default/";
+        return new DefaultGroupImage(
+                prefix + index + ".png",
+                prefix + index + "_thumb.png"
+        );
+    }
+
     @Override
     @Transactional
     public ChatRoomResponseDto createChatRoom(ChatRoomCreateRequestDto requestDto, Long userId) {
@@ -69,6 +83,13 @@ public class ChatServiceImpl implements ChatService {
 
         ChatRoom savedChatRoom = chatRoomRepository.save(chatRoom);
 
+        // 기본 이미지 설정 (사용자가 이미지를 제공하지 않은 경우)
+        if (roomImageUrl == null) {
+            DefaultGroupImage defaultImage = getDefaultGroupImage(savedChatRoom.getId());
+            savedChatRoom.updateRoomImage(defaultImage.originalUrl());
+            log.info("채팅방 기본 이미지 설정 - ID: {}, URL: {}", savedChatRoom.getId(), defaultImage.originalUrl());
+        }
+
         // 방장을 채팅방에 추가
         addUserToChatRoom(savedChatRoom, owner);
 
@@ -87,7 +108,7 @@ public class ChatServiceImpl implements ChatService {
         }
 
         log.info("채팅방 생성 완료 - ID: {}, 방장: {}, 이미지 설정: {}",
-                savedChatRoom.getId(), userId, roomImageUrl != null);
+                savedChatRoom.getId(), userId, roomImageUrl != null ? "사용자 제공" : "기본 이미지");
         return buildChatRoomResponse(savedChatRoom, userId);
     }
 
@@ -525,6 +546,27 @@ public class ChatServiceImpl implements ChatService {
 
         if (chatRoom.getOwner() != null && chatRoom.getOwner().getUserProfileImage() != null) {
             dto.setOwnerThumbnailUrl(chatRoom.getOwner().getUserProfileImage().getThumbnailImageUrl());
+        }
+
+        // 그룹 채팅방인 경우 기본 이미지 설정
+        if (chatRoom.getType() == ChatRoomType.GROUP &&
+                (chatRoom.getRoomImageUrl() == null || chatRoom.getRoomImageUrl().isEmpty())) {
+            DefaultGroupImage defaultImage = getDefaultGroupImage(chatRoom.getId());
+
+            return ChatRoomResponseDto.builder()
+                    .id(dto.getId())
+                    .name(dto.getName())
+                    .type(dto.getType())
+                    .owner(dto.getOwner())
+                    .users(dto.getUsers())
+                    .createdAt(dto.getCreatedAt())
+                    .lastMessageAt(dto.getLastMessageAt())
+                    .isActive(dto.isActive())
+                    .roomImageUrl(defaultImage.originalUrl())
+                    .isOwner(dto.isOwner())
+                    .inviteCode(dto.getInviteCode())
+                    .inviteCodeExpiredAt(dto.getInviteCodeExpiredAt())
+                    .build();
         }
 
         return dto;

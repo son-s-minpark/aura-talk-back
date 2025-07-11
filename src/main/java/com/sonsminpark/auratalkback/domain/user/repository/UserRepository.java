@@ -37,4 +37,6 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     @Query("SELECT DISTINCT u FROM User u LEFT JOIN FETCH u.userProfileImage WHERE u.id IN :userIds")
     List<User> findAllByIdWithProfileImage(@Param("userIds") List<Long> userIds);
+
+    Optional<User> findByEmailAndIsDeletedTrue(String email);
 }

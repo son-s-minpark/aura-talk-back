@@ -6,6 +6,7 @@ import com.sonsminpark.auratalkback.domain.chat.dto.request.ChatRoomUpdateReques
 import com.sonsminpark.auratalkback.domain.chat.dto.request.OneToOneChatRequestDto;
 import com.sonsminpark.auratalkback.domain.chat.dto.response.ChatInviteResponseDto;
 import com.sonsminpark.auratalkback.domain.chat.dto.response.ChatRoomResponseDto;
+import com.sonsminpark.auratalkback.domain.chat.dto.response.ChatUserResponseDto;
 import com.sonsminpark.auratalkback.domain.chat.service.ChatService;
 import com.sonsminpark.auratalkback.global.common.ApiResponse;
 import com.sonsminpark.auratalkback.global.jwt.JwtTokenProvider;
@@ -304,24 +305,44 @@ public class ChatRoomController {
 
     @PutMapping("/{chatroomId}/unban/{targetUserId}")
     @Operation(
-            summary = "채팅방 사용자 강퇴 해제",
-            description = "방장이 강퇴된 사용자의 강퇴를 해제합니다.",
+            summary = "채팅방 사용자 차단 해제",
+            description = "방장이 강퇴된 사용자의 차단을 해제합니다.",
             security = {@SecurityRequirement(name = "bearerAuth")}
     )
     public ResponseEntity<ApiResponse<Void>> unbanUser(
             @RequestHeader("Authorization") String authHeader,
             @Parameter(description = "채팅방 ID", required = true)
             @PathVariable Long chatroomId,
-            @Parameter(description = "강퇴 해제할 사용자 ID", required = true)
+            @Parameter(description = "채팅방 차단 해제할 사용자 ID", required = true)
             @PathVariable Long targetUserId) {
 
         Long userId = extractUserIdFromToken(authHeader);
-        log.info("사용자 강퇴 해제 요청 - 방장: {}, 채팅방: {}, 대상: {}", userId, chatroomId, targetUserId);
+        log.info("채팅방 사용자 차단 해제 요청 - 방장: {}, 채팅방: {}, 대상: {}", userId, chatroomId, targetUserId);
 
         chatService.unbanUser(chatroomId, userId, targetUserId);
 
-        log.info("사용자 강퇴 해제 완료 - 대상: {}, 채팅방: {}", targetUserId, chatroomId);
-        return ResponseEntity.ok(ApiResponse.success("사용자의 강퇴가 해제되었습니다."));
+        log.info("채팅방 사용자 차단 해제 완료 - 대상: {}, 채팅방: {}", targetUserId, chatroomId);
+        return ResponseEntity.ok(ApiResponse.success("채팅방 사용자의 차단이 해제되었습니다."));
+    }
+
+    @GetMapping("/{chatroomId}/banned-users")
+    @Operation(
+            summary = "채팅방 차단된 사용자 목록 조회",
+            description = "채팅방에서 차단된 사용자 목록을 조회합니다. 방장만 조회할 수 있습니다.",
+            security = {@SecurityRequirement(name = "bearerAuth")}
+    )
+    public ResponseEntity<ApiResponse<List<ChatUserResponseDto>>> getBannedUsers(
+            @RequestHeader("Authorization") String authHeader,
+            @Parameter(description = "채팅방 ID", required = true)
+            @PathVariable Long chatroomId) {
+
+        Long userId = extractUserIdFromToken(authHeader);
+        log.debug("차단된 사용자 목록 조회 요청 - 사용자: {}, 채팅방: {}", userId, chatroomId);
+
+        List<ChatUserResponseDto> bannedUsers = chatService.getBannedUsers(chatroomId, userId);
+
+        log.debug("차단된 사용자 목록 조회 완료 - 채팅방: {}, 차단된 사용자 수: {}", chatroomId, bannedUsers.size());
+        return ResponseEntity.ok(ApiResponse.success("차단된 사용자 목록을 성공적으로 조회했습니다.", bannedUsers));
     }
 
     @GetMapping("/search")

@@ -58,4 +58,10 @@ public interface ChatRoomRepository extends JpaRepository<ChatRoom, Long> {
             "LEFT JOIN FETCH o.userProfileImage " +
             "WHERE cr.id = :chatRoomId")
     Optional<ChatRoom> findByIdWithOwner(@Param("chatRoomId") Long chatRoomId);
+
+    @Query("SELECT cr FROM ChatRoom cr " +
+            "LEFT JOIN FETCH cr.bannedUsers bu " +
+            "LEFT JOIN FETCH bu.userProfileImage " +
+            "WHERE cr.id = :chatRoomId")
+    Optional<ChatRoom> findByIdWithBannedUsers(@Param("chatRoomId") Long chatRoomId);
 }

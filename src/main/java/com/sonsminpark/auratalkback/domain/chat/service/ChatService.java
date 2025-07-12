@@ -7,6 +7,7 @@ import com.sonsminpark.auratalkback.domain.chat.dto.request.ChatRoomUpdateReques
 import com.sonsminpark.auratalkback.domain.chat.dto.response.ChatInviteResponseDto;
 import com.sonsminpark.auratalkback.domain.chat.dto.response.ChatMessageResponseDto;
 import com.sonsminpark.auratalkback.domain.chat.dto.response.ChatRoomResponseDto;
+import com.sonsminpark.auratalkback.domain.chat.dto.response.ChatUserResponseDto;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
@@ -31,6 +32,8 @@ public interface ChatService {
     void kickUser(Long chatRoomId, Long ownerId, Long targetUserId);
 
     void unbanUser(Long chatRoomId, Long ownerId, Long targetUserId);
+
+    List<ChatUserResponseDto> getBannedUsers(Long chatRoomId, Long userId);
 
     List<ChatRoomResponseDto> searchChatRooms(String keyword, Long userId);
 

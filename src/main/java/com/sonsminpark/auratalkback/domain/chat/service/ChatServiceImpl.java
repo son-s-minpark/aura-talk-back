@@ -283,6 +283,24 @@ public class ChatServiceImpl implements ChatService {
 
     @Override
     @Transactional(readOnly = true)
+    public List<ChatUserResponseDto> getBannedUsers(Long chatRoomId, Long userId) {
+        ChatRoom chatRoom = chatRoomRepository.findByIdWithBannedUsers(chatRoomId)
+                .orElseThrow(() -> ChatRoomNotFoundException.of(chatRoomId));
+
+        // 방장만 차단된 사용자 목록을 조회할 수 있음
+        validateOwnerPermission(chatRoom, userId);
+
+        return chatRoom.getBannedUsers().stream()
+                .map(user -> {
+                    String thumbnailUrl = user.getUserProfileImage() != null ?
+                            user.getUserProfileImage().getThumbnailImageUrl() : null;
+                    return ChatUserResponseDto.from(user, thumbnailUrl);
+                })
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public List<ChatRoomResponseDto> searchChatRooms(String keyword, Long userId) {
         validateUserExists(userId);
 

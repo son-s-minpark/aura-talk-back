@@ -21,5 +21,5 @@ public class ChatRoomCreateRequestDto {
 
     private List<Long> userIds;
 
-    private String roomImageS3Key;
+    private String roomImageUrl;
 }

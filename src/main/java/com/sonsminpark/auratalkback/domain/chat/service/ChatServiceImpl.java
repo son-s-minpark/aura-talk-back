@@ -67,10 +67,9 @@ public class ChatServiceImpl implements ChatService {
     public ChatRoomResponseDto createChatRoom(ChatRoomCreateRequestDto requestDto, Long userId) {
         User owner = findUserById(userId);
 
-        String roomImageUrl = null;
-        if (requestDto.getRoomImageS3Key() != null && !requestDto.getRoomImageS3Key().trim().isEmpty()) {
-            roomImageUrl = "https://" + bucketName + ".s3.amazonaws.com/" + requestDto.getRoomImageS3Key();
-            log.info("채팅방 이미지 설정 - S3 키: {}, URL: {}", requestDto.getRoomImageS3Key(), roomImageUrl);
+        String roomImageUrl = requestDto.getRoomImageUrl();
+        if (roomImageUrl != null && !roomImageUrl.trim().isEmpty()) {
+            log.info("채팅방 이미지 설정 - URL: {}", roomImageUrl);
         }
 
         ChatRoom chatRoom = ChatRoom.builder()
@@ -84,7 +83,7 @@ public class ChatServiceImpl implements ChatService {
         ChatRoom savedChatRoom = chatRoomRepository.save(chatRoom);
 
         // 기본 이미지 설정 (사용자가 이미지를 제공하지 않은 경우)
-        if (roomImageUrl == null) {
+        if (roomImageUrl == null || roomImageUrl.trim().isEmpty()) {
             DefaultGroupImage defaultImage = getDefaultGroupImage(savedChatRoom.getId());
             savedChatRoom.updateRoomImage(defaultImage.originalUrl());
             log.info("채팅방 기본 이미지 설정 - ID: {}, URL: {}", savedChatRoom.getId(), defaultImage.originalUrl());

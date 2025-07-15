@@ -24,8 +24,11 @@ public class JwtTokenProvider {
     @Value("${jwt.secret:defaultSecretKey}")
     private String secretKey;
 
-    @Value("${jwt.token-validity-in-milliseconds:86400000}") // 24시간
-    private long tokenValidityInMilliseconds;
+    @Value("${jwt.access-token-validity-in-milliseconds:900000}") // 15분
+    private long accessTokenValidityInMilliseconds;
+
+    @Value("${jwt.refresh-token-validity-in-milliseconds:604800000}") // 7일
+    private long refreshTokenValidityInMilliseconds;
 
     private final UserDetailsService userDetailsService;
     private SecretKey key;
@@ -40,13 +43,29 @@ public class JwtTokenProvider {
         this.key = Keys.hmacShaKeyFor(keyBytes);
     }
 
-    public String createToken(String email, Long userId) {
+    public String createAccessToken(String email, Long userId) {
         Date now = new Date();
-        Date validity = new Date(now.getTime() + tokenValidityInMilliseconds);
+        Date validity = new Date(now.getTime() + accessTokenValidityInMilliseconds);
 
         return Jwts.builder()
                 .subject(email)
                 .claim("userId", userId)
+                .claim("tokenType", "ACCESS")
+                .issuedAt(now)
+                .expiration(validity)
+                .signWith(key)
+                .compact();
+    }
+
+    public String createRefreshTokenJwt(String tokenId, String email, Long userId) {
+        Date now = new Date();
+        Date validity = new Date(now.getTime() + refreshTokenValidityInMilliseconds);
+
+        return Jwts.builder()
+                .subject(email)
+                .claim("userId", userId)
+                .claim("tokenType", "REFRESH")
+                .claim("tokenId", tokenId)
                 .issuedAt(now)
                 .expiration(validity)
                 .signWith(key)
@@ -60,6 +79,24 @@ public class JwtTokenProvider {
                 .parseSignedClaims(token)
                 .getPayload()
                 .getSubject();
+    }
+
+    public String getTokenIdFromRefreshToken(String token) {
+        return Jwts.parser()
+                .verifyWith(key)
+                .build()
+                .parseSignedClaims(token)
+                .getPayload()
+                .get("tokenId", String.class);
+    }
+
+    public String getTokenType(String token) {
+        return Jwts.parser()
+                .verifyWith(key)
+                .build()
+                .parseSignedClaims(token)
+                .getPayload()
+                .get("tokenType", String.class);
     }
 
     public boolean validateToken(String token) {
@@ -86,7 +123,21 @@ public class JwtTokenProvider {
         return new UsernamePasswordAuthenticationToken(userDetails, "", userDetails.getAuthorities());
     }
 
+    public long getAccessTokenValidityInMilliseconds() {
+        return accessTokenValidityInMilliseconds;
+    }
+
+    public long getRefreshTokenValidityInMilliseconds() {
+        return refreshTokenValidityInMilliseconds;
+    }
+
+    @Deprecated
+    public String createToken(String email, Long userId) {
+        return createAccessToken(email, userId);
+    }
+
+    @Deprecated
     public long getTokenValidityInMilliseconds() {
-        return tokenValidityInMilliseconds;
+        return getAccessTokenValidityInMilliseconds();
     }
 }

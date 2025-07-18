@@ -35,52 +35,64 @@ public class User {
     @Column(length = 100)
     private String description;
 
-    @ElementCollection
-    @CollectionTable(name = "user_interests", joinColumns = @JoinColumn(name = "user_id"))
-    @Column(name = "interest")
-    private List<String> interests = new ArrayList<>();
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @Builder.Default
+    private List<UserInterest> userInterests = new ArrayList<>();
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private UserStatus status;
+    @Builder.Default
+    private UserStatus status = UserStatus.ONLINE;
 
     @CreationTimestamp
     private LocalDateTime createdAt;
 
     @Column(nullable = false)
-    private boolean isDeleted;
+    @Builder.Default
+    private boolean isDeleted = false;
 
     private LocalDateTime deletedAt;
 
     @Column(nullable = false)
+    @Builder.Default
     private boolean emailVerified = false;
 
     @Column(nullable = false)
+    @Builder.Default
     private boolean randomChatEnabled = false;
 
     @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     private UserProfileImage userProfileImage;
 
-    public void updateStatus(UserStatus status) {
-        this.status = status;
-    }
-
-    public void delete() {
-        this.isDeleted = true;
-        this.deletedAt = LocalDateTime.now();
-        this.status = UserStatus.OFFLINE;
+    public List<String> getInterests() {
+        return userInterests.stream()
+                .map(UserInterest::getInterestName)
+                .toList();
     }
 
     public void update(String nickname, List<String> interests) {
         this.nickname = nickname;
-        this.interests = interests;
+        updateInterests(interests);
     }
 
     public void updateProfile(String username, String nickname, List<String> interests, String description) {
         this.username = username;
         this.nickname = nickname;
-        this.interests = interests;
         this.description = description;
+        updateInterests(interests);
+    }
+
+    private void updateInterests(List<String> interests) {
+        this.userInterests.clear();
+        if (interests != null) {
+            for (String interest : interests) {
+                this.userInterests.add(new UserInterest(this, interest));
+            }
+        }
+    }
+
+    public void updateStatus(UserStatus status) {
+        this.status = status;
     }
 
     public void updateChatSettings(boolean randomChatEnabled) {
@@ -91,12 +103,18 @@ public class User {
         this.emailVerified = true;
     }
 
+    public void delete() {
+        this.isDeleted = true;
+        this.deletedAt = LocalDateTime.now();
+        this.status = UserStatus.OFFLINE;
+    }
+
     // 탈퇴한 사용자 정보 익명화
     public void anonymize() {
         this.email = "deleted_" + this.id + "_" + System.currentTimeMillis() + "@deleted.com";
         this.username = "탈퇴회원";
         this.nickname = "탈퇴회원";
         this.password = "";
-        this.interests.clear();
+        this.userInterests.clear();
     }
 }

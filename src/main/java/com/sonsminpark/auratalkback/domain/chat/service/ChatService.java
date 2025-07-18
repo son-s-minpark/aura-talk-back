@@ -3,7 +3,7 @@ package com.sonsminpark.auratalkback.domain.chat.service;
 import com.sonsminpark.auratalkback.domain.chat.dto.request.ChatInviteRequestDto;
 import com.sonsminpark.auratalkback.domain.chat.dto.request.ChatMessageRequestDto;
 import com.sonsminpark.auratalkback.domain.chat.dto.request.ChatRoomCreateRequestDto;
-import com.sonsminpark.auratalkback.domain.chat.dto.response.ChatInvitationResponseDto;
+import com.sonsminpark.auratalkback.domain.chat.dto.request.ChatRoomUpdateRequestDto;
 import com.sonsminpark.auratalkback.domain.chat.dto.response.ChatInviteResponseDto;
 import com.sonsminpark.auratalkback.domain.chat.dto.response.ChatMessageResponseDto;
 import com.sonsminpark.auratalkback.domain.chat.dto.response.ChatRoomResponseDto;
@@ -16,9 +16,21 @@ public interface ChatService {
     // 채팅방
     ChatRoomResponseDto createChatRoom(ChatRoomCreateRequestDto requestDto, Long userId);
 
+    ChatRoomResponseDto createOneToOneChatRoom(Long userId, Long targetUserId);
+
     List<ChatRoomResponseDto> getChatRoomsByUserId(Long userId);
 
+    ChatRoomResponseDto getChatRoomInfo(Long chatRoomId, Long userId);
+
+    ChatRoomResponseDto updateChatRoom(Long chatRoomId, ChatRoomUpdateRequestDto requestDto, Long userId);
+
     void leaveChatRoom(Long chatRoomId, Long userId);
+
+    void deleteChatRoom(Long chatRoomId, Long userId);
+
+    void kickUser(Long chatRoomId, Long ownerId, Long targetUserId);
+
+    List<ChatRoomResponseDto> searchChatRooms(String keyword, Long userId);
 
     // 메시지
     ChatMessageResponseDto sendMessage(Long chatRoomId, ChatMessageRequestDto requestDto, Long userId);
@@ -36,19 +48,4 @@ public interface ChatService {
 
     // 설정
     void updateNotificationSettings(Long chatRoomId, Long userId, boolean enabled);
-
-    @Deprecated
-    List<ChatInvitationResponseDto> getPendingInvitations(Long userId);
-
-    @Deprecated
-    void acceptInvitation(Long invitationId, Long userId);
-
-    @Deprecated
-    void rejectInvitation(Long invitationId, Long userId);
-
-    @Deprecated
-    void rejectInvite(String inviteCode, Long userId);
-
-    @Deprecated
-    ChatInvitationResponseDto inviteUser(Long chatRoomId, ChatInviteRequestDto requestDto, Long userId);
 }

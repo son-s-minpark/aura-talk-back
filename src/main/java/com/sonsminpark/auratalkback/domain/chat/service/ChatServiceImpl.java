@@ -3,6 +3,7 @@ package com.sonsminpark.auratalkback.domain.chat.service;
 import com.sonsminpark.auratalkback.domain.chat.dto.request.ChatInviteRequestDto;
 import com.sonsminpark.auratalkback.domain.chat.dto.request.ChatMessageRequestDto;
 import com.sonsminpark.auratalkback.domain.chat.dto.request.ChatRoomCreateRequestDto;
+import com.sonsminpark.auratalkback.domain.chat.dto.request.ChatRoomUpdateRequestDto;
 import com.sonsminpark.auratalkback.domain.chat.dto.response.*;
 import com.sonsminpark.auratalkback.domain.chat.entity.*;
 import com.sonsminpark.auratalkback.domain.chat.exception.*;
@@ -24,6 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -62,6 +64,48 @@ public class ChatServiceImpl implements ChatService {
     }
 
     @Override
+    @Transactional
+    public ChatRoomResponseDto createOneToOneChatRoom(Long userId, Long targetUserId) {
+        User user = findUserById(userId);
+        User targetUser = findUserById(targetUserId);
+
+        if (userId.equals(targetUserId)) {
+            throw new IllegalArgumentException("자기 자신과는 채팅할 수 없습니다.");
+        }
+
+        Optional<ChatRoom> existingChatRoom = chatRoomRepository.findOneToOneChatRoom(
+                ChatRoomType.ONE_TO_ONE, userId, targetUserId);
+
+        if (existingChatRoom.isPresent()) {
+            ChatRoom chatRoom = existingChatRoom.get();
+            if (chatRoom.isActive()) {
+                log.info("기존 1:1 채팅방 반환 - ID: {}, 사용자: {} <-> {}",
+                        chatRoom.getId(), userId, targetUserId);
+                return buildChatRoomResponse(chatRoom, userId);
+            }
+        }
+
+        String chatRoomName = user.getNickname() + ", " + targetUser.getNickname();
+
+        ChatRoom chatRoom = ChatRoom.builder()
+                .name(chatRoomName)
+                .type(ChatRoomType.ONE_TO_ONE)
+                .owner(user)
+                .isActive(true)
+                .build();
+
+        ChatRoom savedChatRoom = chatRoomRepository.save(chatRoom);
+
+        addUserToChatRoom(savedChatRoom, user);
+        addUserToChatRoom(savedChatRoom, targetUser);
+
+        log.info("1:1 채팅방 생성 완료 - ID: {}, 사용자: {} <-> {}",
+                savedChatRoom.getId(), userId, targetUserId);
+
+        return buildChatRoomResponse(savedChatRoom, userId);
+    }
+
+    @Override
     @Transactional(readOnly = true)
     public List<ChatRoomResponseDto> getChatRoomsByUserId(Long userId) {
         validateUserExists(userId);
@@ -71,6 +115,40 @@ public class ChatServiceImpl implements ChatService {
         return chatRooms.stream()
                 .map(chatRoom -> buildChatRoomResponse(chatRoom, userId))
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public ChatRoomResponseDto getChatRoomInfo(Long chatRoomId, Long userId) {
+        ChatRoom chatRoom = findChatRoomById(chatRoomId);
+
+        validateChatRoomAccess(chatRoomId, userId);
+
+        return buildChatRoomResponse(chatRoom, userId);
+    }
+
+    @Override
+    @Transactional
+    public ChatRoomResponseDto updateChatRoom(Long chatRoomId, ChatRoomUpdateRequestDto requestDto, Long userId) {
+        ChatRoom chatRoom = findChatRoomById(chatRoomId);
+
+        validateOwnerPermission(chatRoom, userId);
+        validateChatRoomActive(chatRoom);
+
+        if (requestDto.getName() != null && !requestDto.getName().trim().isEmpty()) {
+            chatRoom.updateName(requestDto.getName().trim());
+
+            sendSystemMessage(chatRoom, "채팅방 이름이 '" + requestDto.getName() + "'로 변경되었습니다.");
+        }
+
+        if (requestDto.getRoomImageUrl() != null) {
+            chatRoom.updateRoomImage(requestDto.getRoomImageUrl());
+
+            sendSystemMessage(chatRoom, "채팅방 이미지가 변경되었습니다.");
+        }
+
+        log.info("채팅방 정보 수정 완료 - ID: {}, 수정자: {}", chatRoomId, userId);
+        return buildChatRoomResponse(chatRoom, userId);
     }
 
     @Override
@@ -89,6 +167,65 @@ public class ChatServiceImpl implements ChatService {
 
         chatRoomUserRepository.delete(roomUser);
         log.info("사용자 {}가 채팅방 {}을 나갔습니다.", userId, chatRoomId);
+    }
+
+    @Override
+    @Transactional
+    public void deleteChatRoom(Long chatRoomId, Long userId) {
+        ChatRoom chatRoom = findChatRoomById(chatRoomId);
+
+        validateOwnerPermission(chatRoom, userId);
+
+        sendSystemMessage(chatRoom, "채팅방이 없습니다.");
+
+        // 채팅방과 관련된 모든 데이터 삭제
+        chatRoomUserRepository.deleteAllByChatRoomId(chatRoomId);
+        chatMessageRepository.deleteAllByChatRoomId(chatRoomId);
+        chatRoomRepository.delete(chatRoom);
+
+        log.info("채팅방 {}이 완전히 삭제되었습니다.", chatRoomId);
+    }
+
+    @Override
+    @Transactional
+    public void kickUser(Long chatRoomId, Long ownerId, Long targetUserId) {
+        ChatRoom chatRoom = findChatRoomById(chatRoomId);
+        User targetUser = findUserById(targetUserId);
+
+        validateOwnerPermission(chatRoom, ownerId);
+        validateChatRoomActive(chatRoom);
+
+        if (ownerId.equals(targetUserId)) {
+            throw new IllegalArgumentException("자기 자신을 강퇴할 수 없습니다.");
+        }
+
+        ChatRoomUser roomUser = chatRoomUserRepository.findByChatRoomIdAndUserId(chatRoomId, targetUserId)
+                .orElseThrow(() -> InvalidChatRoomStateException.notMember());
+
+        sendSystemMessage(chatRoom, targetUser.getNickname() + "님이 강퇴되었습니다.");
+
+        chatRoomUserRepository.delete(roomUser);
+
+        sendDirectMessage(targetUser, "'" + chatRoom.getName() + "' 채팅방에서 강퇴되었습니다.");
+
+        log.info("사용자 {}가 채팅방 {}에서 강퇴되었습니다.", targetUserId, chatRoomId);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ChatRoomResponseDto> searchChatRooms(String keyword, Long userId) {
+        validateUserExists(userId);
+
+        if (keyword == null || keyword.trim().isEmpty()) {
+            return List.of();
+        }
+
+        // 사용자가 참여한 채팅방 중에서 검색
+        List<ChatRoom> searchResults = chatRoomRepository.searchByNameAndUserId(keyword.trim(), userId);
+
+        return searchResults.stream()
+                .map(chatRoom -> buildChatRoomResponse(chatRoom, userId))
+                .collect(Collectors.toList());
     }
 
     @Override
@@ -264,61 +401,6 @@ public class ChatServiceImpl implements ChatService {
         roomUser.updateNotificationSetting(enabled);
 
         log.info("사용자 {}의 채팅방 {} 알림 설정이 {}로 변경되었습니다.", userId, chatRoomId, enabled ? "활성화" : "비활성화");
-    }
-
-    @Override
-    @Deprecated
-    @Transactional(readOnly = true)
-    public List<ChatInvitationResponseDto> getPendingInvitations(Long userId) {
-        log.debug("Deprecated 메소드 호출 - getPendingInvitations. 사용자: {}", userId);
-        return List.of();
-    }
-
-    @Override
-    @Deprecated
-    @Transactional
-    public void acceptInvitation(Long invitationId, Long userId) {
-        log.warn("Deprecated 메소드 호출 - acceptInvitation. 사용자: {}, 초대 ID: {}", userId, invitationId);
-        throw new UnsupportedOperationException("이 기능은 더 이상 지원되지 않습니다. 초대 링크 방식으로 변경되었습니다.");
-    }
-
-    @Override
-    @Deprecated
-    @Transactional
-    public void rejectInvitation(Long invitationId, Long userId) {
-        log.warn("Deprecated 메소드 호출 - rejectInvitation. 사용자: {}, 초대 ID: {}", userId, invitationId);
-        throw new UnsupportedOperationException("이 기능은 더 이상 지원되지 않습니다.");
-    }
-
-    @Override
-    @Deprecated
-    @Transactional
-    public void rejectInvite(String inviteCode, Long userId) {
-        log.warn("Deprecated 메소드 호출 - rejectInvite. 사용자: {}, 초대 코드: {}", userId, inviteCode);
-        throw new UnsupportedOperationException("이 기능은 더 이상 지원되지 않습니다.");
-    }
-
-    @Override
-    @Deprecated
-    @Transactional
-    public ChatInvitationResponseDto inviteUser(Long chatRoomId, ChatInviteRequestDto requestDto, Long userId) {
-        log.warn("Deprecated 메소드 호출 - inviteUser. sendInviteToFriend 사용을 권장합니다.");
-
-        sendInviteToFriend(chatRoomId, requestDto, userId);
-
-        User inviter = findUserById(userId);
-        User invitee = findUserById(requestDto.getUserId());
-        ChatRoom chatRoom = findChatRoomById(chatRoomId);
-
-        return ChatInvitationResponseDto.builder()
-                .id(-1L)
-                .chatRoomId(chatRoomId)
-                .chatRoomName(chatRoom.getName())
-                .inviter(ChatUserResponseDto.from(inviter))
-                .invitee(ChatUserResponseDto.from(invitee))
-                .status(InvitationStatus.PENDING)
-                .createdAt(LocalDateTime.now())
-                .build();
     }
 
     private User findUserById(Long userId) {

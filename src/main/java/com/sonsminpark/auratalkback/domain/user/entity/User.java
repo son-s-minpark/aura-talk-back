@@ -67,6 +67,15 @@ public class User {
         }
     }
 
+    public void setSecretStatus(boolean isSecret) {
+        if (isSecret) {
+            this.status = UserStatus.SECRET;
+        }
+        else {
+            this.status = UserStatus.ONLINE;
+        }
+    }
+
     public void delete() {
         this.isDeleted = true;
         this.deletedAt = LocalDateTime.now();

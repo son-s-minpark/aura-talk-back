@@ -250,4 +250,25 @@ public class UserServiceImpl implements UserService {
 
         user.updateChatSettings(randomChatEnabled);
     }
+
+    @Override
+    @Transactional
+    public void updateSecretStatus(String token, boolean isSecret) {
+        Long userId = jwtTokenProvider.getUserIdFromToken(token);
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> UserNotFoundException.of(userId));
+
+        if (user.isDeleted()) {
+            throw InvalidUserInputException.of("탈퇴한 회원은 설정을 변경할 수 없습니다.");
+        }
+
+        user.setSecretStatus(isSecret);
+
+        // TODO: WebSocket으로 상태 변경 실시간 알림 추가
+        // notifyStatusChange(user);
+    }
+
+    private void notifyStatusChange(User user) {
+
+    }
 }

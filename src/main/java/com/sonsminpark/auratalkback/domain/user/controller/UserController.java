@@ -5,11 +5,13 @@ import com.sonsminpark.auratalkback.domain.user.dto.response.LoginResponseDto;
 import com.sonsminpark.auratalkback.domain.user.dto.response.SignUpResponseDto;
 import com.sonsminpark.auratalkback.domain.user.dto.response.MyProfileResponseDto;
 import com.sonsminpark.auratalkback.domain.user.dto.response.UserProfileResponseDto;
+import com.sonsminpark.auratalkback.domain.user.entity.UserStatus;
 import com.sonsminpark.auratalkback.domain.user.service.UserService;
 import com.sonsminpark.auratalkback.global.common.ApiResponse;
 import com.sonsminpark.auratalkback.global.exception.ErrorCode;
 import com.sonsminpark.auratalkback.global.security.CustomUserDetails;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -138,4 +140,22 @@ public class UserController {
         userService.updateChatSettings(token, chatSettingsRequestDto.isRandomChatEnabled());
         return ResponseEntity.ok(ApiResponse.success("랜덤 채팅 설정이 변경되었습니다."));
     }
+
+    @PutMapping("/secret")
+    @Operation(
+            summary = "시크릿 모드 변경",
+            description = "시크릿 모드를 활성화/비활성화합니다. 시크릿 모드에서는 다른 사용자에게 오프라인으로 보입니다.",
+            security = { @SecurityRequirement(name = "bearerAuth") }
+    )
+    public ResponseEntity<ApiResponse<Void>> updateSecretStatus(
+            @RequestHeader("Authorization") String authHeader,
+            @Parameter(description = "시크릿 모드 활성화 여부", required = true)
+            @RequestParam boolean isSecret) {
+
+        String token = authHeader.substring(7);
+        userService.updateSecretStatus(token, isSecret);
+        String message = isSecret ? "시크릿 모드가 활성화되었습니다." : "시크릿 모드가 비활성화되었습니다.";
+        return ResponseEntity.ok(ApiResponse.success(message));
+    }
+
 }

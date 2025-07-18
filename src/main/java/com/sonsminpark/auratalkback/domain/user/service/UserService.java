@@ -36,4 +36,7 @@ public interface UserService {
 
     // 랜덤 채팅 설정 업데이트
     void updateChatSettings(String token, boolean randomChatEnabled);
+
+    // 회원 시크릿 상태 업데이트
+    void updateSecretStatus(String token, boolean isSecret);
 }

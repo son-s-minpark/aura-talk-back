@@ -54,12 +54,35 @@ public class ChatServiceImpl implements ChatService {
     }
 
     private DefaultGroupImage getDefaultGroupImage(Long chatRoomId) {
-        int index = Math.toIntExact(chatRoomId % DEFAULT_GROUP_IMAGE_COUNT) + 1;
-        String prefix = "https://" + bucketName + ".s3.amazonaws.com/group-images/default/";
-        return new DefaultGroupImage(
-                prefix + index + ".png",
-                prefix + index + "_thumb.png"
-        );
+        try {
+            // 항상 1 또는 2만 반환
+            int index = (int) ((chatRoomId - 1) % DEFAULT_GROUP_IMAGE_COUNT) + 1;
+
+            // 범위 체크
+            if (index < 1 || index > DEFAULT_GROUP_IMAGE_COUNT) {
+                index = 1; // 기본값
+            }
+
+            String prefix = "https://" + bucketName + ".s3.amazonaws.com/group-images/default/";
+
+            log.debug("기본 그룹 이미지 생성 - 채팅방 ID: {}, 계산된 인덱스: {}", chatRoomId, index);
+
+            String originalUrl = prefix + index + ".png";
+            String thumbnailUrl = prefix + index + "_thumb.png";
+
+            log.debug("생성된 이미지 URL - 원본: {}, 썸네일: {}", originalUrl, thumbnailUrl);
+
+            return new DefaultGroupImage(originalUrl, thumbnailUrl);
+        } catch (Exception e) {
+            log.error("기본 그룹 이미지 생성 실패 - 채팅방 ID: {}, 에러: {}", chatRoomId, e.getMessage(), e);
+
+            // 오류 발생 시 항상 1번 이미지 사용
+            String prefix = "https://" + bucketName + ".s3.amazonaws.com/group-images/default/";
+            return new DefaultGroupImage(
+                    prefix + "1.png",
+                    prefix + "1_thumb.png"
+            );
+        }
     }
 
     @Override
@@ -84,9 +107,18 @@ public class ChatServiceImpl implements ChatService {
 
         // 기본 이미지 설정 (사용자가 이미지를 제공하지 않은 경우)
         if (roomImageUrl == null || roomImageUrl.trim().isEmpty()) {
-            DefaultGroupImage defaultImage = getDefaultGroupImage(savedChatRoom.getId());
-            savedChatRoom.updateRoomImage(defaultImage.originalUrl());
-            log.info("채팅방 기본 이미지 설정 - ID: {}, URL: {}", savedChatRoom.getId(), defaultImage.originalUrl());
+            try {
+                DefaultGroupImage defaultImage = getDefaultGroupImage(savedChatRoom.getId());
+                savedChatRoom.updateRoomImage(defaultImage.originalUrl());
+                log.info("채팅방 기본 이미지 설정 완료 - ID: {}, 이미지 URL: {}",
+                        savedChatRoom.getId(), defaultImage.originalUrl());
+            } catch (Exception e) {
+                log.error("채팅방 기본 이미지 설정 실패 - ID: {}, 에러: {}", savedChatRoom.getId(), e.getMessage());
+                String fallbackUrl = "https://" + bucketName + ".s3.amazonaws.com/group-images/default/1.png";
+                savedChatRoom.updateRoomImage(fallbackUrl);
+                log.warn("채팅방 기본 이미지를 fallback으로 설정 - ID: {}, URL: {}",
+                        savedChatRoom.getId(), fallbackUrl);
+            }
         }
 
         // 방장을 채팅방에 추가

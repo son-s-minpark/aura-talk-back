@@ -36,18 +36,36 @@ public class ChatRoomImageServiceImpl implements ChatRoomImageService {
     public ChatRoomImageResponseDto getDefaultImage(Long chatRoomId) {
         log.debug("채팅방 기본 이미지 생성 - 채팅방 ID: {}", chatRoomId);
 
-        int index = Math.toIntExact(chatRoomId % DEFAULT_GROUP_IMAGE_COUNT) + 1;
-        String prefix = "https://" + bucketName + ".s3.amazonaws.com/group-images/default/";
+        try {
+            int index = Math.toIntExact(chatRoomId % DEFAULT_GROUP_IMAGE_COUNT) + 1;
 
-        String originalImageUrl = prefix + index + ".png";
-        String thumbnailImageUrl = prefix + index + "_thumb.png";
+            // 범위 체크
+            if (index < 1 || index > DEFAULT_GROUP_IMAGE_COUNT) {
+                index = 1;
+            }
 
-        log.debug("채팅방 기본 이미지 생성 완료 - 원본: {}", originalImageUrl);
+            String prefix = "https://" + bucketName + ".s3.amazonaws.com/group-images/default/";
 
-        return ChatRoomImageResponseDto.builder()
-                .originalImageUrl(originalImageUrl)
-                .thumbnailImageUrl(thumbnailImageUrl)
-                .isDefaultImage(true)
-                .build();
+            String originalImageUrl = prefix + index + ".png";
+            String thumbnailImageUrl = prefix + index + "_thumb.png";
+
+            log.debug("채팅방 기본 이미지 생성 완료 - 원본: {}, 썸네일: {}", originalImageUrl, thumbnailImageUrl);
+
+            return ChatRoomImageResponseDto.builder()
+                    .originalImageUrl(originalImageUrl)
+                    .thumbnailImageUrl(thumbnailImageUrl)
+                    .isDefaultImage(true)
+                    .build();
+        } catch (Exception e) {
+            log.error("채팅방 기본 이미지 생성 실패 - ID: {}, 에러: {}", chatRoomId, e.getMessage(), e);
+
+            // 오류 발생 시 기본값
+            String prefix = "https://" + bucketName + ".s3.amazonaws.com/group-images/default/";
+            return ChatRoomImageResponseDto.builder()
+                    .originalImageUrl(prefix + "1.png")
+                    .thumbnailImageUrl(prefix + "1_thumb.png")
+                    .isDefaultImage(true)
+                    .build();
+        }
     }
 }

@@ -37,7 +37,7 @@ public class ChatRoomImageServiceImpl implements ChatRoomImageService {
         log.debug("채팅방 기본 이미지 생성 - 채팅방 ID: {}", chatRoomId);
 
         try {
-            int index = Math.toIntExact(chatRoomId % DEFAULT_GROUP_IMAGE_COUNT) + 1;
+            int index = (int) (chatRoomId % DEFAULT_GROUP_IMAGE_COUNT) + 1;
 
             // 범위 체크
             if (index < 1 || index > DEFAULT_GROUP_IMAGE_COUNT) {

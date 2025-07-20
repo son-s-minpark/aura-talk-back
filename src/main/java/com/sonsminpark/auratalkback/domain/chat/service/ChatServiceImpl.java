@@ -56,7 +56,7 @@ public class ChatServiceImpl implements ChatService {
     private DefaultGroupImage getDefaultGroupImage(Long chatRoomId) {
         try {
             // 항상 1 또는 2만 반환
-            int index = (int) ((chatRoomId - 1) % DEFAULT_GROUP_IMAGE_COUNT) + 1;
+            int index = (int) (chatRoomId % DEFAULT_GROUP_IMAGE_COUNT) + 1;
 
             // 범위 체크
             if (index < 1 || index > DEFAULT_GROUP_IMAGE_COUNT) {
@@ -580,47 +580,73 @@ public class ChatServiceImpl implements ChatService {
     }
 
     private ChatRoomResponseDto buildChatRoomResponse(ChatRoom chatRoom, Long currentUserId) {
-        ChatRoomResponseDto dto = ChatRoomResponseDto.from(chatRoom, currentUserId);
+        try {
+            ChatRoomResponseDto dto = ChatRoomResponseDto.from(chatRoom, currentUserId);
 
-        List<ChatRoomUser> roomUsers = chatRoomUserRepository.findAllByChatRoomIdWithUserAndProfile(chatRoom.getId());
+            List<ChatRoomUser> roomUsers = chatRoomUserRepository.findAllByChatRoomIdWithUserAndProfile(chatRoom.getId());
 
-        List<ChatUserResponseDto> users = roomUsers.stream()
-                .map(roomUser -> {
-                    User user = roomUser.getUser();
-                    String thumbnailUrl = user.getUserProfileImage() != null ?
-                            user.getUserProfileImage().getThumbnailImageUrl() : null;
-                    return ChatUserResponseDto.from(user, thumbnailUrl);
-                })
-                .toList();
+            List<ChatUserResponseDto> users = roomUsers.stream()
+                    .map(roomUser -> {
+                        User user = roomUser.getUser();
+                        String thumbnailUrl = user.getUserProfileImage() != null ?
+                                user.getUserProfileImage().getThumbnailImageUrl() : null;
+                        return ChatUserResponseDto.from(user, thumbnailUrl);
+                    })
+                    .toList();
 
-        dto.setUsers(users);
+            dto.setUsers(users);
 
-        if (chatRoom.getOwner() != null && chatRoom.getOwner().getUserProfileImage() != null) {
-            dto.setOwnerThumbnailUrl(chatRoom.getOwner().getUserProfileImage().getThumbnailImageUrl());
-        }
+            if (chatRoom.getOwner() != null && chatRoom.getOwner().getUserProfileImage() != null) {
+                dto.setOwnerThumbnailUrl(chatRoom.getOwner().getUserProfileImage().getThumbnailImageUrl());
+            }
 
-        // 그룹 채팅방인 경우 기본 이미지 설정
-        if (chatRoom.getType() == ChatRoomType.GROUP &&
-                (chatRoom.getRoomImageUrl() == null || chatRoom.getRoomImageUrl().isEmpty())) {
-            DefaultGroupImage defaultImage = getDefaultGroupImage(chatRoom.getId());
+            // 그룹 채팅방인 경우 기본 이미지 설정
+            if (chatRoom.getType() == ChatRoomType.GROUP &&
+                    (chatRoom.getRoomImageUrl() == null || chatRoom.getRoomImageUrl().trim().isEmpty())) {
+
+                try {
+                    DefaultGroupImage defaultImage = getDefaultGroupImage(chatRoom.getId());
+
+                    return ChatRoomResponseDto.builder()
+                            .id(dto.getId())
+                            .name(dto.getName())
+                            .type(dto.getType())
+                            .owner(dto.getOwner())
+                            .users(dto.getUsers())
+                            .createdAt(dto.getCreatedAt())
+                            .lastMessageAt(dto.getLastMessageAt())
+                            .isActive(dto.isActive())
+                            .roomImageUrl(defaultImage.originalUrl())
+                            .isOwner(dto.isOwner())
+                            .inviteCode(dto.getInviteCode())
+                            .inviteCodeExpiredAt(dto.getInviteCodeExpiredAt())
+                            .build();
+                } catch (Exception e) {
+                    log.error("기본 그룹 이미지 설정 실패 - 채팅방 ID: {}, 에러: {}", chatRoom.getId(), e.getMessage(), e);
+                    // 기본 이미지 설정 실패 시 원본 DTO 반환
+                    return dto;
+                }
+            }
+
+            return dto;
+        } catch (Exception e) {
+            log.error("채팅방 응답 생성 실패 - 채팅방 ID: {}, 에러: {}", chatRoom.getId(), e.getMessage(), e);
 
             return ChatRoomResponseDto.builder()
-                    .id(dto.getId())
-                    .name(dto.getName())
-                    .type(dto.getType())
-                    .owner(dto.getOwner())
-                    .users(dto.getUsers())
-                    .createdAt(dto.getCreatedAt())
-                    .lastMessageAt(dto.getLastMessageAt())
-                    .isActive(dto.isActive())
-                    .roomImageUrl(defaultImage.originalUrl())
-                    .isOwner(dto.isOwner())
-                    .inviteCode(dto.getInviteCode())
-                    .inviteCodeExpiredAt(dto.getInviteCodeExpiredAt())
+                    .id(chatRoom.getId())
+                    .name(chatRoom.getName())
+                    .type(chatRoom.getType())
+                    .owner(chatRoom.getOwner() != null ? ChatUserResponseDto.from(chatRoom.getOwner()) : null)
+                    .users(List.of())
+                    .createdAt(chatRoom.getCreatedAt())
+                    .lastMessageAt(chatRoom.getLastMessageAt())
+                    .isActive(chatRoom.isActive())
+                    .roomImageUrl(chatRoom.getRoomImageUrl())
+                    .isOwner(chatRoom.isUserOwner(currentUserId))
+                    .inviteCode(chatRoom.getInviteCode())
+                    .inviteCodeExpiredAt(chatRoom.getInviteCodeExpiredAt())
                     .build();
         }
-
-        return dto;
     }
 
     private void handleOwnerLeaving(ChatRoom chatRoom) {

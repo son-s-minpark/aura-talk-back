@@ -205,7 +205,7 @@ public class ChatRoomController {
     @PostMapping("/{chatroomId}/invite")
     @Operation(
             summary = "친구에게 초대 링크 전송",
-            description = "특정 친구에게 채팅방 초대 링크를 전송합니다. 링크를 받은 친구가 수락하면 채팅방에 참여됩니다.",
+            description = "특정 친구에게 채팅방 초대 링크를 전송합니다. 링크를 받은 친구가 수락하면 채팅방에 참여됩니다. 채팅방 참여자라면 누구나 초대할 수 있습니다.",
             security = {@SecurityRequirement(name = "bearerAuth")}
     )
     public ResponseEntity<ApiResponse<ChatInviteResponseDto>> sendInviteToFriend(
@@ -227,7 +227,7 @@ public class ChatRoomController {
     @PostMapping("/{chatroomId}/invite-link")
     @Operation(
             summary = "초대 링크 생성",
-            description = "채팅방 초대 링크를 생성합니다. 방장만 생성할 수 있으며 24시간 후 만료됩니다.",
+            description = "채팅방 초대 링크를 생성합니다. 채팅방 참여자라면 누구나 생성할 수 있으며 24시간 후 만료됩니다.",
             security = {@SecurityRequirement(name = "bearerAuth")}
     )
     public ResponseEntity<ApiResponse<ChatInviteResponseDto>> createInviteLink(
@@ -243,7 +243,7 @@ public class ChatRoomController {
         log.info("초대 링크 생성 완료 - 채팅방: {}, 만료시간: {}", chatroomId, responseDto.getExpiresAt());
         return ResponseEntity.ok(ApiResponse.success("초대 링크가 생성되었습니다.", responseDto));
     }
-
+    
     @PostMapping("/join")
     @Operation(
             summary = "초대 링크로 채팅방 참여",

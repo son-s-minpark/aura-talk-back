@@ -418,7 +418,8 @@ public class ChatServiceImpl implements ChatService {
     public ChatInviteResponseDto createInviteLink(Long chatRoomId, Long userId) {
         ChatRoom chatRoom = findChatRoomById(chatRoomId);
 
-        validateOwnerPermission(chatRoom, userId);
+        // 채팅방 접근 권한 검증
+        validateChatRoomAccess(chatRoomId, userId);
         validateChatRoomActive(chatRoom);
 
         String inviteCode = UUID.randomUUID().toString();
@@ -444,6 +445,7 @@ public class ChatServiceImpl implements ChatService {
         User inviter = findUserById(userId);
         User invitee = findUserById(requestDto.getUserId());
 
+        // 채팅방 접근 권한 검증
         validateChatRoomAccess(chatRoomId, userId);
         validateChatRoomActive(chatRoom);
 

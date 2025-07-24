@@ -89,8 +89,10 @@ public class ChatServiceImpl implements ChatService {
         User owner = findUserById(userId);
 
         String roomImageUrl = requestDto.getRoomImageUrl();
+        String roomThumbnailImageUrl = requestDto.getRoomThumbnailImageUrl();
+
         if (roomImageUrl != null && !roomImageUrl.trim().isEmpty()) {
-            log.info("채팅방 이미지 설정 - URL: {}", roomImageUrl);
+            log.info("채팅방 이미지 설정 - 원본: {}, 썸네일: {}", roomImageUrl, roomThumbnailImageUrl);
         }
 
         ChatRoom chatRoom = ChatRoom.builder()
@@ -98,6 +100,7 @@ public class ChatServiceImpl implements ChatService {
                 .type(ChatRoomType.GROUP)
                 .owner(owner)
                 .roomImageUrl(roomImageUrl)
+                .roomThumbnailImageUrl(roomThumbnailImageUrl)
                 .isActive(true)
                 .build();
 
@@ -106,16 +109,16 @@ public class ChatServiceImpl implements ChatService {
         // 기본 이미지 설정 (사용자가 이미지를 제공하지 않은 경우)
         if (roomImageUrl == null || roomImageUrl.trim().isEmpty()) {
             try {
-                DefaultGroupImage defaultImage = getDefaultGroupImage(savedChatRoom.getId());
-                savedChatRoom.updateRoomImage(defaultImage.originalUrl());
-                log.info("채팅방 기본 이미지 설정 완료 - ID: {}, 이미지 URL: {}",
-                        savedChatRoom.getId(), defaultImage.originalUrl());
+                ChatRoomImageResponseDto defaultImage = chatRoomImageService.getDefaultImage(savedChatRoom.getId());
+                savedChatRoom.updateRoomImage(defaultImage.getOriginalImageUrl(), defaultImage.getThumbnailImageUrl());
+                log.info("채팅방 기본 이미지 설정 완료 - ID: {}, 원본: {}, 썸네일: {}",
+                        savedChatRoom.getId(), defaultImage.getOriginalImageUrl(), defaultImage.getThumbnailImageUrl());
             } catch (Exception e) {
                 log.error("채팅방 기본 이미지 설정 실패 - ID: {}, 에러: {}", savedChatRoom.getId(), e.getMessage());
-                String fallbackUrl = "https://" + bucketName + ".s3.amazonaws.com/group-images/default/1.png";
-                savedChatRoom.updateRoomImage(fallbackUrl);
-                log.warn("채팅방 기본 이미지를 fallback으로 설정 - ID: {}, URL: {}",
-                        savedChatRoom.getId(), fallbackUrl);
+                String fallbackOriginalUrl = "https://" + bucketName + ".s3.amazonaws.com/group-images/default/1.png";
+                String fallbackThumbnailUrl = "https://" + bucketName + ".s3.amazonaws.com/group-images/default/1_thumb.png";
+                savedChatRoom.updateRoomImage(fallbackOriginalUrl, fallbackThumbnailUrl);
+                log.warn("채팅방 기본 이미지를 fallback으로 설정 - ID: {}", savedChatRoom.getId());
             }
         }
 
@@ -216,11 +219,15 @@ public class ChatServiceImpl implements ChatService {
 
         if (requestDto.getName() != null && !requestDto.getName().trim().isEmpty()) {
             chatRoom.updateName(requestDto.getName().trim());
-            sendSystemMessage(chatRoom, "채팅방 이름이 '" + requestDto.getName() + "'로 변경되었습니다.");
+//            sendSystemMessage(chatRoom, "채팅방 이름이 '" + requestDto.getName() + "'로 변경되었습니다.");
         }
 
         if (requestDto.getRoomImageUrl() != null) {
-            chatRoom.updateRoomImage(requestDto.getRoomImageUrl());
+            if (requestDto.getRoomThumbnailImageUrl() != null) {
+                chatRoom.updateRoomImage(requestDto.getRoomImageUrl(), requestDto.getRoomThumbnailImageUrl());
+            } else {
+                chatRoom.updateRoomImage(requestDto.getRoomImageUrl());
+            }
 //            sendSystemMessage(chatRoom, "채팅방 이미지가 변경되었습니다.");
         }
 
@@ -236,13 +243,19 @@ public class ChatServiceImpl implements ChatService {
         validateOwnerPermission(chatRoom, userId);
         validateChatRoomActive(chatRoom);
 
+        // 현재 이미지 URL들 저장
         String currentImageUrl = chatRoom.getRoomImageUrl();
+        String currentThumbnailUrl = chatRoom.getRoomThumbnailImageUrl();
 
-        ChatRoomImageResponseDto defaultImageDto = chatRoomImageService.deleteRoomImage(chatRoomId, currentImageUrl);
+        // 채팅방 이미지 삭제 및 기본 이미지로 변경
+        ChatRoomImageResponseDto defaultImageDto = chatRoomImageService.deleteRoomImage(
+                chatRoomId, currentImageUrl, currentThumbnailUrl);
 
-        chatRoom.updateRoomImage(defaultImageDto.getOriginalImageUrl());
+        // 채팅방의 이미지 URL들을 기본 이미지로 업데이트
+        chatRoom.updateRoomImage(defaultImageDto.getOriginalImageUrl(), defaultImageDto.getThumbnailImageUrl());
 
-        sendSystemMessage(chatRoom, "채팅방 이미지가 기본 이미지로 변경되었습니다.");
+        // 시스템 메시지 전송
+//        sendSystemMessage(chatRoom, "채팅방 이미지가 기본 이미지로 변경되었습니다.");
 
         log.info("채팅방 이미지 삭제 완료 - ID: {}, 수정자: {}", chatRoomId, userId);
         return buildChatRoomResponse(chatRoom, userId);
@@ -325,7 +338,7 @@ public class ChatServiceImpl implements ChatService {
         }
 
         chatRoom.unbanUser(targetUser);
-        sendSystemMessage(chatRoom, targetUser.getNickname() + "님의 강퇴가 해제되었습니다.");
+//        sendSystemMessage(chatRoom, targetUser.getNickname() + "님의 강퇴가 해제되었습니다.");
 
         log.info("사용자 {}의 채팅방 {} 강퇴가 해제되었습니다.", targetUserId, chatRoomId);
     }
@@ -525,7 +538,7 @@ public class ChatServiceImpl implements ChatService {
         }
 
         addUserToChatRoom(chatRoom, user);
-        sendSystemMessage(chatRoom, user.getNickname() + "님이 초대 링크를 통해 입장했습니다.");
+        sendSystemMessage(chatRoom, user.getNickname() + "님이 채팅방에 입장했습니다.");
 
         log.info("사용자 {}가 초대 링크를 통해 채팅방 {}에 입장했습니다.", userId, chatRoom.getId());
     }
@@ -618,12 +631,12 @@ public class ChatServiceImpl implements ChatService {
                 dto.setOwnerThumbnailUrl(chatRoom.getOwner().getUserProfileImage().getThumbnailImageUrl());
             }
 
-            // 그룹 채팅방인 경우 기본 이미지 설정
+            // 그룹 채팅방인 경우 기본 이미지 설정 (DB에 없는 경우에만)
             if (chatRoom.getType() == ChatRoomType.GROUP &&
                     (chatRoom.getRoomImageUrl() == null || chatRoom.getRoomImageUrl().trim().isEmpty())) {
 
                 try {
-                    DefaultGroupImage defaultImage = getDefaultGroupImage(chatRoom.getId());
+                    ChatRoomImageResponseDto defaultImage = chatRoomImageService.getDefaultImage(chatRoom.getId());
 
                     return ChatRoomResponseDto.builder()
                             .id(dto.getId())
@@ -634,7 +647,8 @@ public class ChatServiceImpl implements ChatService {
                             .createdAt(dto.getCreatedAt())
                             .lastMessageAt(dto.getLastMessageAt())
                             .isActive(dto.isActive())
-                            .roomImageUrl(defaultImage.originalUrl())
+                            .roomImageUrl(defaultImage.getOriginalImageUrl())
+                            .roomThumbnailImageUrl(defaultImage.getThumbnailImageUrl())
                             .isOwner(dto.isOwner())
                             .inviteCode(dto.getInviteCode())
                             .inviteCodeExpiredAt(dto.getInviteCodeExpiredAt())
@@ -660,6 +674,7 @@ public class ChatServiceImpl implements ChatService {
                     .lastMessageAt(chatRoom.getLastMessageAt())
                     .isActive(chatRoom.isActive())
                     .roomImageUrl(chatRoom.getRoomImageUrl())
+                    .roomThumbnailImageUrl(chatRoom.getRoomThumbnailImageUrl())
                     .isOwner(chatRoom.isUserOwner(currentUserId))
                     .inviteCode(chatRoom.getInviteCode())
                     .inviteCodeExpiredAt(chatRoom.getInviteCodeExpiredAt())

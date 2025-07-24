@@ -11,5 +11,5 @@ public interface ChatRoomImageService {
     ChatRoomImageResponseDto getDefaultImage(Long chatRoomId);
 
     // 채팅방 이미지 삭제 및 기본 이미지로 변경
-    ChatRoomImageResponseDto deleteRoomImage(Long chatRoomId, String currentImageUrl);
+    ChatRoomImageResponseDto deleteRoomImage(Long chatRoomId, String currentImageUrl, String currentThumbnailUrl);
 }

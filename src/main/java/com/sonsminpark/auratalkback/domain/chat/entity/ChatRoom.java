@@ -3,8 +3,8 @@ package com.sonsminpark.auratalkback.domain.chat.entity;
 import com.sonsminpark.auratalkback.domain.user.entity.User;
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.BatchSize;
+import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
 import java.util.HashSet;
@@ -73,6 +73,9 @@ public class ChatRoom {
     @Column
     private String roomImageUrl;
 
+    @Column
+    private String roomThumbnailImageUrl;
+
     public void banUser(User user) {
         this.bannedUsers.add(user);
     }
@@ -111,6 +114,11 @@ public class ChatRoom {
 
     public void updateRoomImage(String imageUrl) {
         this.roomImageUrl = imageUrl;
+    }
+
+    public void updateRoomImage(String imageUrl, String thumbnailImageUrl) {
+        this.roomImageUrl = imageUrl;
+        this.roomThumbnailImageUrl = thumbnailImageUrl;
     }
 
     public boolean isUserOwner(Long userId) {

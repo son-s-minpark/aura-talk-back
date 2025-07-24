@@ -72,20 +72,29 @@ public class ChatRoomImageServiceImpl implements ChatRoomImageService {
         }
     }
 
-    public ChatRoomImageResponseDto deleteRoomImage(Long chatRoomId, String currentImageUrl) {
+    public ChatRoomImageResponseDto deleteRoomImage(Long chatRoomId, String currentImageUrl, String currentThumbnailUrl) {
         log.info("채팅방 이미지 삭제 및 기본 이미지로 변경 - 채팅방 ID: {}", chatRoomId);
 
         try {
             // 현재 이미지가 기본 이미지가 아닌 경우에만 S3에서 삭제
             if (currentImageUrl != null && !isDefaultImage(currentImageUrl)) {
+                // 원본 이미지 삭제
                 s3Service.deleteFileFromS3(currentImageUrl);
 
-                String thumbnailUrl = currentImageUrl.replace("/original/", "/thumbnail/");
-                s3Service.deleteFileFromS3(thumbnailUrl);
+                // 썸네일 이미지 삭제 (URL이 있는 경우)
+                if (currentThumbnailUrl != null) {
+                    s3Service.deleteFileFromS3(currentThumbnailUrl);
+                } else {
+                    // 썸네일 URL이 없다면 원본 URL에서 생성
+                    String thumbnailUrl = currentImageUrl.replace("/original/", "/thumbnail/");
+                    s3Service.deleteFileFromS3(thumbnailUrl);
+                }
 
-                log.info("S3에서 채팅방 이미지 삭제 완료 - 원본: {}, 썸네일: {}", currentImageUrl, thumbnailUrl);
+                log.info("S3에서 채팅방 이미지 삭제 완료 - 원본: {}, 썸네일: {}",
+                        currentImageUrl, currentThumbnailUrl != null ? currentThumbnailUrl : "자동생성");
             }
 
+            // 기본 이미지로 변경
             ChatRoomImageResponseDto defaultImage = getDefaultImage(chatRoomId);
 
             log.info("채팅방 이미지를 기본 이미지로 변경 완료 - 채팅방 ID: {}", chatRoomId);

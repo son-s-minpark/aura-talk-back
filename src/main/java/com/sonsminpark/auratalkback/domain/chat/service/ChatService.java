@@ -25,6 +25,8 @@ public interface ChatService {
 
     ChatRoomResponseDto updateChatRoom(Long chatRoomId, ChatRoomUpdateRequestDto requestDto, Long userId);
 
+    ChatRoomResponseDto deleteRoomImage(Long chatRoomId, Long userId);
+
     void leaveChatRoom(Long chatRoomId, Long userId);
 
     void deleteChatRoom(Long chatRoomId, Long userId);

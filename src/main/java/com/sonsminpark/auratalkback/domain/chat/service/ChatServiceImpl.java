@@ -4,10 +4,7 @@ import com.sonsminpark.auratalkback.domain.chat.dto.request.ChatInviteRequestDto
 import com.sonsminpark.auratalkback.domain.chat.dto.request.ChatMessageRequestDto;
 import com.sonsminpark.auratalkback.domain.chat.dto.request.ChatRoomCreateRequestDto;
 import com.sonsminpark.auratalkback.domain.chat.dto.request.ChatRoomUpdateRequestDto;
-import com.sonsminpark.auratalkback.domain.chat.dto.response.ChatInviteResponseDto;
-import com.sonsminpark.auratalkback.domain.chat.dto.response.ChatMessageResponseDto;
-import com.sonsminpark.auratalkback.domain.chat.dto.response.ChatRoomResponseDto;
-import com.sonsminpark.auratalkback.domain.chat.dto.response.ChatUserResponseDto;
+import com.sonsminpark.auratalkback.domain.chat.dto.response.*;
 import com.sonsminpark.auratalkback.domain.chat.entity.*;
 import com.sonsminpark.auratalkback.domain.chat.exception.*;
 import com.sonsminpark.auratalkback.domain.chat.repository.ChatInvitationRepository;
@@ -44,6 +41,7 @@ public class ChatServiceImpl implements ChatService {
     private final UserRepository userRepository;
     private final SimpMessagingTemplate messagingTemplate;
     private final UserProfileImageService userProfileImageService;
+    private final ChatRoomImageService chatRoomImageService;
 
     @Value("${cloud.aws.s3.bucket}")
     private String bucketName;
@@ -223,10 +221,30 @@ public class ChatServiceImpl implements ChatService {
 
         if (requestDto.getRoomImageUrl() != null) {
             chatRoom.updateRoomImage(requestDto.getRoomImageUrl());
-            sendSystemMessage(chatRoom, "채팅방 이미지가 변경되었습니다.");
+//            sendSystemMessage(chatRoom, "채팅방 이미지가 변경되었습니다.");
         }
 
         log.info("채팅방 정보 수정 완료 - ID: {}, 수정자: {}", chatRoomId, userId);
+        return buildChatRoomResponse(chatRoom, userId);
+    }
+
+    @Override
+    @Transactional
+    public ChatRoomResponseDto deleteRoomImage(Long chatRoomId, Long userId) {
+        ChatRoom chatRoom = findChatRoomById(chatRoomId);
+
+        validateOwnerPermission(chatRoom, userId);
+        validateChatRoomActive(chatRoom);
+
+        String currentImageUrl = chatRoom.getRoomImageUrl();
+
+        ChatRoomImageResponseDto defaultImageDto = chatRoomImageService.deleteRoomImage(chatRoomId, currentImageUrl);
+
+        chatRoom.updateRoomImage(defaultImageDto.getOriginalImageUrl());
+
+        sendSystemMessage(chatRoom, "채팅방 이미지가 기본 이미지로 변경되었습니다.");
+
+        log.info("채팅방 이미지 삭제 완료 - ID: {}, 수정자: {}", chatRoomId, userId);
         return buildChatRoomResponse(chatRoom, userId);
     }
 

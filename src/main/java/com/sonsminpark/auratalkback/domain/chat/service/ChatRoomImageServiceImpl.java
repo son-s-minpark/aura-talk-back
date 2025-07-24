@@ -1,6 +1,7 @@
 package com.sonsminpark.auratalkback.domain.chat.service;
 
 import com.sonsminpark.auratalkback.domain.chat.dto.response.ChatRoomImageResponseDto;
+import com.sonsminpark.auratalkback.global.s3.S3Service;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -10,6 +11,8 @@ import org.springframework.stereotype.Service;
 @Service
 @RequiredArgsConstructor
 public class ChatRoomImageServiceImpl implements ChatRoomImageService {
+
+    private final S3Service s3Service;
 
     @Value("${cloud.aws.s3.bucket}")
     private String bucketName;
@@ -67,5 +70,41 @@ public class ChatRoomImageServiceImpl implements ChatRoomImageService {
                     .isDefaultImage(true)
                     .build();
         }
+    }
+
+    public ChatRoomImageResponseDto deleteRoomImage(Long chatRoomId, String currentImageUrl) {
+        log.info("채팅방 이미지 삭제 및 기본 이미지로 변경 - 채팅방 ID: {}", chatRoomId);
+
+        try {
+            // 현재 이미지가 기본 이미지가 아닌 경우에만 S3에서 삭제
+            if (currentImageUrl != null && !isDefaultImage(currentImageUrl)) {
+                s3Service.deleteFileFromS3(currentImageUrl);
+
+                String thumbnailUrl = currentImageUrl.replace("/original/", "/thumbnail/");
+                s3Service.deleteFileFromS3(thumbnailUrl);
+
+                log.info("S3에서 채팅방 이미지 삭제 완료 - 원본: {}, 썸네일: {}", currentImageUrl, thumbnailUrl);
+            }
+
+            ChatRoomImageResponseDto defaultImage = getDefaultImage(chatRoomId);
+
+            log.info("채팅방 이미지를 기본 이미지로 변경 완료 - 채팅방 ID: {}", chatRoomId);
+
+            return defaultImage;
+        } catch (Exception e) {
+            log.error("채팅방 이미지 삭제 실패 - 채팅방 ID: {}, 에러: {}", chatRoomId, e.getMessage(), e);
+
+            // 오류 발생 시에도 기본 이미지 반환
+            return getDefaultImage(chatRoomId);
+        }
+    }
+
+    private boolean isDefaultImage(String imageUrl) {
+        if (imageUrl == null) {
+            return true;
+        }
+
+        String defaultImagePrefix = "https://" + bucketName + ".s3.amazonaws.com/group-images/default/";
+        return imageUrl.startsWith(defaultImagePrefix);
     }
 }

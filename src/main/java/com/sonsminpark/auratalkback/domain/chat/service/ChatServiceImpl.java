@@ -309,8 +309,7 @@ public class ChatServiceImpl implements ChatService {
             throw new IllegalArgumentException("자기 자신을 강퇴할 수 없습니다.");
         }
 
-        ChatRoomUser roomUser = chatRoomUserRepository.findByChatRoomIdAndUserId(chatRoomId, targetUserId)
-                .orElseThrow(() -> InvalidChatRoomStateException.notMember());
+        ChatRoomUser roomUser = findChatRoomUser(chatRoomId, targetUserId);
 
         chatRoom.banUser(targetUser);
         sendSystemMessage(chatRoom, targetUser.getNickname() + "님이 강퇴되었습니다.");
@@ -563,8 +562,11 @@ public class ChatServiceImpl implements ChatService {
     }
 
     private ChatRoomUser findChatRoomUser(Long chatRoomId, Long userId) {
-        return chatRoomUserRepository.findByChatRoomIdAndUserId(chatRoomId, userId)
-                .orElseThrow(() -> InvalidChatRoomStateException.notMember());
+        List<ChatRoomUser> users = chatRoomUserRepository.findByChatRoomIdAndUserId(chatRoomId, userId);
+        if (users.isEmpty()) {
+            throw InvalidChatRoomStateException.notMember();
+        }
+        return users.get(0);
     }
 
     private void validateUserExists(Long userId) {
@@ -598,7 +600,9 @@ public class ChatServiceImpl implements ChatService {
     }
 
     private boolean isUserInChatRoom(Long chatRoomId, Long userId) {
-        return chatRoomUserRepository.findByChatRoomIdAndUserId(chatRoomId, userId).isPresent();
+        // findUserSettings 대신 findByChatRoomIdAndUserId 사용으로 중복 데이터 문제 해결
+        List<ChatRoomUser> users = chatRoomUserRepository.findByChatRoomIdAndUserId(chatRoomId, userId);
+        return !users.isEmpty();
     }
 
     private void addUserToChatRoom(ChatRoom chatRoom, User user) {

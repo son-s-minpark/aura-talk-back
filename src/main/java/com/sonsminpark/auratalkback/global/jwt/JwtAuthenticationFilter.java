@@ -101,7 +101,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 path.startsWith("/api/users/resend-verification") ||
                 path.equals("/api/health") ||
                 path.equals("/api/interests") ||
-                path.startsWith("/api/interests/category/");
+                path.startsWith("/api/interests/category/") ||
+                path.startsWith("/ws");
     }
 
     private boolean shouldBypassMissingTokenCheck(HttpServletRequest request) {

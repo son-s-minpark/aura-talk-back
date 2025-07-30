@@ -235,11 +235,6 @@ public class ChatRoomController {
         return ResponseEntity.ok(ApiResponse.success("알림 설정이 변경되었습니다."));
     }
 
-    private Long extractUserIdFromToken(String authHeader) {
-        String token = authHeader.substring(7); // "Bearer " 제거
-        return jwtTokenProvider.getUserIdFromToken(token);
-    }
-
     @DeleteMapping("/{chatroomId}/delete")
     @Operation(
             summary = "채팅방 삭제",
@@ -282,10 +277,32 @@ public class ChatRoomController {
         return ResponseEntity.ok(ApiResponse.success("사용자가 강퇴되었습니다."));
     }
 
+    @PutMapping("/{chatroomId}/unban/{targetUserId}")
+    @Operation(
+            summary = "채팅방 사용자 강퇴 해제",
+            description = "방장이 강퇴된 사용자의 강퇴를 해제합니다.",
+            security = {@SecurityRequirement(name = "bearerAuth")}
+    )
+    public ResponseEntity<ApiResponse<Void>> unbanUser(
+            @RequestHeader("Authorization") String authHeader,
+            @Parameter(description = "채팅방 ID", required = true)
+            @PathVariable Long chatroomId,
+            @Parameter(description = "강퇴 해제할 사용자 ID", required = true)
+            @PathVariable Long targetUserId) {
+
+        Long userId = extractUserIdFromToken(authHeader);
+        log.info("사용자 강퇴 해제 요청 - 방장: {}, 채팅방: {}, 대상: {}", userId, chatroomId, targetUserId);
+
+        chatService.unbanUser(chatroomId, userId, targetUserId);
+
+        log.info("사용자 강퇴 해제 완료 - 대상: {}, 채팅방: {}", targetUserId, chatroomId);
+        return ResponseEntity.ok(ApiResponse.success("사용자의 강퇴가 해제되었습니다."));
+    }
+
     @GetMapping("/search")
     @Operation(
             summary = "채팅방 검색",
-            description = "채팅방 이름으로 검색합니다.",
+            description = "채팅방 이름과 참여자 이름으로 검색합니다.",
             security = {@SecurityRequirement(name = "bearerAuth")}
     )
     public ResponseEntity<ApiResponse<List<ChatRoomResponseDto>>> searchChatRooms(
@@ -300,5 +317,10 @@ public class ChatRoomController {
 
         log.debug("채팅방 검색 완료 - 사용자: {}, 결과 수: {}", userId, chatRooms.size());
         return ResponseEntity.ok(ApiResponse.success("채팅방 검색이 완료되었습니다.", chatRooms));
+    }
+
+    private Long extractUserIdFromToken(String authHeader) {
+        String token = authHeader.substring(7); // "Bearer " 제거
+        return jwtTokenProvider.getUserIdFromToken(token);
     }
 }

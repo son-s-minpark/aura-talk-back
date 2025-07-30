@@ -30,6 +30,8 @@ public interface ChatService {
 
     void kickUser(Long chatRoomId, Long ownerId, Long targetUserId);
 
+    void unbanUser(Long chatRoomId, Long ownerId, Long targetUserId);
+
     List<ChatRoomResponseDto> searchChatRooms(String keyword, Long userId);
 
     // 메시지

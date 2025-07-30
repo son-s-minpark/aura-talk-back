@@ -202,6 +202,8 @@ public class ChatServiceImpl implements ChatService {
         ChatRoomUser roomUser = chatRoomUserRepository.findByChatRoomIdAndUserId(chatRoomId, targetUserId)
                 .orElseThrow(() -> InvalidChatRoomStateException.notMember());
 
+        chatRoom.banUser(targetUser);
+
         sendSystemMessage(chatRoom, targetUser.getNickname() + "님이 강퇴되었습니다.");
 
         chatRoomUserRepository.delete(roomUser);
@@ -209,6 +211,30 @@ public class ChatServiceImpl implements ChatService {
         sendDirectMessage(targetUser, "'" + chatRoom.getName() + "' 채팅방에서 강퇴되었습니다.");
 
         log.info("사용자 {}가 채팅방 {}에서 강퇴되었습니다.", targetUserId, chatRoomId);
+    }
+
+    @Override
+    @Transactional
+    public void unbanUser(Long chatRoomId, Long ownerId, Long targetUserId) {
+        ChatRoom chatRoom = findChatRoomById(chatRoomId);
+        User targetUser = findUserById(targetUserId);
+
+        validateOwnerPermission(chatRoom, ownerId);
+        validateChatRoomActive(chatRoom);
+
+        if (ownerId.equals(targetUserId)) {
+            throw new IllegalArgumentException("자기 자신의 강퇴를 해제할 수 없습니다.");
+        }
+
+        if (!chatRoom.isBannedUser(targetUserId)) {
+            throw new IllegalArgumentException("강퇴되지 않은 사용자입니다.");
+        }
+
+        chatRoom.unbanUser(targetUser);
+
+        sendSystemMessage(chatRoom, targetUser.getNickname() + "님의 강퇴가 해제되었습니다.");
+
+        log.info("사용자 {}의 채팅방 {} 강퇴가 해제되었습니다.", targetUserId, chatRoomId);
     }
 
     @Override
@@ -220,7 +246,6 @@ public class ChatServiceImpl implements ChatService {
             return List.of();
         }
 
-        // 사용자가 참여한 채팅방 중에서 검색
         List<ChatRoom> searchResults = chatRoomRepository.searchByNameAndUserId(keyword.trim(), userId);
 
         return searchResults.stream()
@@ -343,6 +368,10 @@ public class ChatServiceImpl implements ChatService {
             throw InvalidChatRoomStateException.alreadyMember();
         }
 
+        if (chatRoom.isBannedUser(invitee.getId())) {
+            throw new IllegalArgumentException("강퇴된 사용자는 초대할 수 없습니다.");
+        }
+
         ChatInviteResponseDto inviteResponse;
         if (chatRoom.isInviteCodeValid()) {
             inviteResponse = ChatInviteResponseDto.builder()
@@ -380,6 +409,10 @@ public class ChatServiceImpl implements ChatService {
 
         if (!chatRoom.isInviteCodeValid()) {
             throw ChatInvitationException.expiredInvite();
+        }
+
+        if (chatRoom.isBannedUser(userId)) {
+            throw ChatRoomBannedException.of(chatRoom.getName());
         }
 
         User user = findUserById(userId);
@@ -431,6 +464,12 @@ public class ChatServiceImpl implements ChatService {
     }
 
     private void validateChatRoomAccess(Long chatRoomId, Long userId) {
+        ChatRoom chatRoom = findChatRoomById(chatRoomId);
+
+        if (chatRoom.isBannedUser(userId)) {
+            throw ChatRoomBannedException.of();
+        }
+
         if (!isUserInChatRoom(chatRoomId, userId)) {
             throw ChatAccessDeniedException.of("채팅방에 참여할 권한이 없습니다.");
         }

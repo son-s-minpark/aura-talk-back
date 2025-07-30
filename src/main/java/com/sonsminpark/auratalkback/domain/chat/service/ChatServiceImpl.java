@@ -4,7 +4,10 @@ import com.sonsminpark.auratalkback.domain.chat.dto.request.ChatInviteRequestDto
 import com.sonsminpark.auratalkback.domain.chat.dto.request.ChatMessageRequestDto;
 import com.sonsminpark.auratalkback.domain.chat.dto.request.ChatRoomCreateRequestDto;
 import com.sonsminpark.auratalkback.domain.chat.dto.request.ChatRoomUpdateRequestDto;
-import com.sonsminpark.auratalkback.domain.chat.dto.response.*;
+import com.sonsminpark.auratalkback.domain.chat.dto.response.ChatInviteResponseDto;
+import com.sonsminpark.auratalkback.domain.chat.dto.response.ChatMessageResponseDto;
+import com.sonsminpark.auratalkback.domain.chat.dto.response.ChatRoomResponseDto;
+import com.sonsminpark.auratalkback.domain.chat.dto.response.ChatUserResponseDto;
 import com.sonsminpark.auratalkback.domain.chat.entity.*;
 import com.sonsminpark.auratalkback.domain.chat.exception.*;
 import com.sonsminpark.auratalkback.domain.chat.repository.ChatInvitationRepository;
@@ -28,7 +31,6 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -46,16 +48,51 @@ public class ChatServiceImpl implements ChatService {
     @Value("${cloud.aws.s3.bucket}")
     private String bucketName;
 
+    private static final int DEFAULT_GROUP_IMAGE_COUNT = 2;
+
+    private record DefaultGroupImage(String originalUrl, String thumbnailUrl) {
+    }
+
+    private DefaultGroupImage getDefaultGroupImage(Long chatRoomId) {
+        try {
+            // 항상 1 또는 2만 반환
+            int index = (int) (chatRoomId % DEFAULT_GROUP_IMAGE_COUNT) + 1;
+
+            // 범위 체크
+            if (index < 1 || index > DEFAULT_GROUP_IMAGE_COUNT) {
+                index = 1; // 기본값
+            }
+
+            String prefix = "https://" + bucketName + ".s3.amazonaws.com/group-images/default/";
+
+            log.debug("기본 그룹 이미지 생성 - 채팅방 ID: {}, 계산된 인덱스: {}", chatRoomId, index);
+
+            String originalUrl = prefix + index + ".png";
+            String thumbnailUrl = prefix + index + "_thumb.png";
+
+            log.debug("생성된 이미지 URL - 원본: {}, 썸네일: {}", originalUrl, thumbnailUrl);
+
+            return new DefaultGroupImage(originalUrl, thumbnailUrl);
+        } catch (Exception e) {
+            log.error("기본 그룹 이미지 생성 실패 - 채팅방 ID: {}, 에러: {}", chatRoomId, e.getMessage(), e);
+
+            // 오류 발생 시 항상 1번 이미지 사용
+            String prefix = "https://" + bucketName + ".s3.amazonaws.com/group-images/default/";
+            return new DefaultGroupImage(
+                    prefix + "1.png",
+                    prefix + "1_thumb.png"
+            );
+        }
+    }
+
     @Override
     @Transactional
     public ChatRoomResponseDto createChatRoom(ChatRoomCreateRequestDto requestDto, Long userId) {
         User owner = findUserById(userId);
 
-        // 채팅방 이미지 URL 생성
-        String roomImageUrl = null;
-        if (requestDto.getRoomImageS3Key() != null && !requestDto.getRoomImageS3Key().trim().isEmpty()) {
-            roomImageUrl = "https://" + bucketName + ".s3.amazonaws.com/" + requestDto.getRoomImageS3Key();
-            log.info("채팅방 이미지 설정 - S3 키: {}, URL: {}", requestDto.getRoomImageS3Key(), roomImageUrl);
+        String roomImageUrl = requestDto.getRoomImageUrl();
+        if (roomImageUrl != null && !roomImageUrl.trim().isEmpty()) {
+            log.info("채팅방 이미지 설정 - URL: {}", roomImageUrl);
         }
 
         ChatRoom chatRoom = ChatRoom.builder()
@@ -68,25 +105,41 @@ public class ChatServiceImpl implements ChatService {
 
         ChatRoom savedChatRoom = chatRoomRepository.save(chatRoom);
 
+        // 기본 이미지 설정 (사용자가 이미지를 제공하지 않은 경우)
+        if (roomImageUrl == null || roomImageUrl.trim().isEmpty()) {
+            try {
+                DefaultGroupImage defaultImage = getDefaultGroupImage(savedChatRoom.getId());
+                savedChatRoom.updateRoomImage(defaultImage.originalUrl());
+                log.info("채팅방 기본 이미지 설정 완료 - ID: {}, 이미지 URL: {}",
+                        savedChatRoom.getId(), defaultImage.originalUrl());
+            } catch (Exception e) {
+                log.error("채팅방 기본 이미지 설정 실패 - ID: {}, 에러: {}", savedChatRoom.getId(), e.getMessage());
+                String fallbackUrl = "https://" + bucketName + ".s3.amazonaws.com/group-images/default/1.png";
+                savedChatRoom.updateRoomImage(fallbackUrl);
+                log.warn("채팅방 기본 이미지를 fallback으로 설정 - ID: {}, URL: {}",
+                        savedChatRoom.getId(), fallbackUrl);
+            }
+        }
+
         // 방장을 채팅방에 추가
         addUserToChatRoom(savedChatRoom, owner);
 
         // 초대할 사용자들이 있으면 추가
         if (requestDto.getUserIds() != null && !requestDto.getUserIds().isEmpty()) {
-            for (Long inviteUserId : requestDto.getUserIds()) {
+            List<User> inviteUsers = userRepository.findAllByIdWithProfileImage(requestDto.getUserIds());
+            for (User inviteUser : inviteUsers) {
                 try {
-                    User inviteUser = findUserById(inviteUserId);
                     addUserToChatRoom(savedChatRoom, inviteUser);
                     sendSystemMessage(savedChatRoom, inviteUser.getNickname() + "님이 초대되었습니다.");
-                    log.info("사용자 {}를 채팅방 {}에 초대했습니다.", inviteUserId, savedChatRoom.getId());
+                    log.info("사용자 {}를 채팅방 {}에 초대했습니다.", inviteUser.getId(), savedChatRoom.getId());
                 } catch (Exception e) {
-                    log.warn("사용자 {} 초대 실패: {}", inviteUserId, e.getMessage());
+                    log.warn("사용자 {} 초대 실패: {}", inviteUser.getId(), e.getMessage());
                 }
             }
         }
 
         log.info("채팅방 생성 완료 - ID: {}, 방장: {}, 이미지 설정: {}",
-                savedChatRoom.getId(), userId, roomImageUrl != null);
+                savedChatRoom.getId(), userId, roomImageUrl != null ? "사용자 제공" : "기본 이미지");
         return buildChatRoomResponse(savedChatRoom, userId);
     }
 
@@ -137,17 +190,18 @@ public class ChatServiceImpl implements ChatService {
     public List<ChatRoomResponseDto> getChatRoomsByUserId(Long userId) {
         validateUserExists(userId);
 
-        List<ChatRoom> chatRooms = chatRoomRepository.findActiveByUserId(userId);
+        List<ChatRoom> chatRooms = chatRoomRepository.findActiveByUserIdWithOwner(userId);
 
         return chatRooms.stream()
                 .map(chatRoom -> buildChatRoomResponse(chatRoom, userId))
-                .collect(Collectors.toList());
+                .toList();
     }
 
     @Override
     @Transactional(readOnly = true)
     public ChatRoomResponseDto getChatRoomInfo(Long chatRoomId, Long userId) {
-        ChatRoom chatRoom = findChatRoomById(chatRoomId);
+        ChatRoom chatRoom = chatRoomRepository.findByIdWithOwner(chatRoomId)
+                .orElseThrow(() -> ChatRoomNotFoundException.of(chatRoomId));
 
         validateChatRoomAccess(chatRoomId, userId);
 
@@ -164,13 +218,11 @@ public class ChatServiceImpl implements ChatService {
 
         if (requestDto.getName() != null && !requestDto.getName().trim().isEmpty()) {
             chatRoom.updateName(requestDto.getName().trim());
-
             sendSystemMessage(chatRoom, "채팅방 이름이 '" + requestDto.getName() + "'로 변경되었습니다.");
         }
 
         if (requestDto.getRoomImageUrl() != null) {
             chatRoom.updateRoomImage(requestDto.getRoomImageUrl());
-
             sendSystemMessage(chatRoom, "채팅방 이미지가 변경되었습니다.");
         }
 
@@ -203,7 +255,7 @@ public class ChatServiceImpl implements ChatService {
 
         validateOwnerPermission(chatRoom, userId);
 
-        sendSystemMessage(chatRoom, "채팅방이 없습니다.");
+        sendSystemMessage(chatRoom, "채팅방이 삭제되었습니다.");
 
         // 채팅방과 관련된 모든 데이터 삭제
         chatRoomUserRepository.deleteAllByChatRoomId(chatRoomId);
@@ -230,11 +282,8 @@ public class ChatServiceImpl implements ChatService {
                 .orElseThrow(() -> InvalidChatRoomStateException.notMember());
 
         chatRoom.banUser(targetUser);
-
         sendSystemMessage(chatRoom, targetUser.getNickname() + "님이 강퇴되었습니다.");
-
         chatRoomUserRepository.delete(roomUser);
-
         sendDirectMessage(targetUser, "'" + chatRoom.getName() + "' 채팅방에서 강퇴되었습니다.");
 
         log.info("사용자 {}가 채팅방 {}에서 강퇴되었습니다.", targetUserId, chatRoomId);
@@ -258,10 +307,27 @@ public class ChatServiceImpl implements ChatService {
         }
 
         chatRoom.unbanUser(targetUser);
-
         sendSystemMessage(chatRoom, targetUser.getNickname() + "님의 강퇴가 해제되었습니다.");
 
         log.info("사용자 {}의 채팅방 {} 강퇴가 해제되었습니다.", targetUserId, chatRoomId);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ChatUserResponseDto> getBannedUsers(Long chatRoomId, Long userId) {
+        ChatRoom chatRoom = chatRoomRepository.findByIdWithBannedUsers(chatRoomId)
+                .orElseThrow(() -> ChatRoomNotFoundException.of(chatRoomId));
+
+        // 방장만 차단된 사용자 목록을 조회할 수 있음
+        validateOwnerPermission(chatRoom, userId);
+
+        return chatRoom.getBannedUsers().stream()
+                .map(user -> {
+                    String thumbnailUrl = user.getUserProfileImage() != null ?
+                            user.getUserProfileImage().getThumbnailImageUrl() : null;
+                    return ChatUserResponseDto.from(user, thumbnailUrl);
+                })
+                .toList();
     }
 
     @Override
@@ -277,7 +343,7 @@ public class ChatServiceImpl implements ChatService {
 
         return searchResults.stream()
                 .map(chatRoom -> buildChatRoomResponse(chatRoom, userId))
-                .collect(Collectors.toList());
+                .toList();
     }
 
     @Override
@@ -299,15 +365,10 @@ public class ChatServiceImpl implements ChatService {
         ChatMessage savedMessage = chatMessageRepository.save(message);
         chatRoom.updateLastMessageAt();
 
-        String senderThumbnailUrl = null;
-        try {
-            senderThumbnailUrl = userProfileImageService.getProfileImage(sender.getId()).getThumbnailImageUrl();
-        } catch (Exception e) {
-            log.warn("프로필 이미지 조회 실패 - 사용자: {}, 오류: {}", sender.getId(), e.getMessage());
-        }
+        String senderThumbnailUrl = sender.getUserProfileImage() != null ?
+                sender.getUserProfileImage().getThumbnailImageUrl() : null;
 
         ChatMessageResponseDto responseDto = ChatMessageResponseDto.from(savedMessage, senderThumbnailUrl);
-
         messagingTemplate.convertAndSend("/topic/chatroom/" + chatRoomId, responseDto);
 
         return responseDto;
@@ -318,16 +379,12 @@ public class ChatServiceImpl implements ChatService {
     public Page<ChatMessageResponseDto> getMessages(Long chatRoomId, Long userId, Pageable pageable) {
         validateChatRoomAccess(chatRoomId, userId);
 
-        Page<ChatMessage> messages = chatMessageRepository.findByChatRoomId(chatRoomId, pageable);
+        Page<ChatMessage> messages = chatMessageRepository.findByChatRoomIdWithSender(chatRoomId, pageable);
 
         return messages.map(message -> {
             String senderThumbnailUrl = null;
-            if (message.getSender() != null) {
-                try {
-                    senderThumbnailUrl = userProfileImageService.getProfileImage(message.getSender().getId()).getThumbnailImageUrl();
-                } catch (Exception e) {
-                    log.warn("프로필 이미지 조회 실패 - 사용자: {}, 오류: {}", message.getSender().getId(), e.getMessage());
-                }
+            if (message.getSender() != null && message.getSender().getUserProfileImage() != null) {
+                senderThumbnailUrl = message.getSender().getUserProfileImage().getThumbnailImageUrl();
             }
             return ChatMessageResponseDto.from(message, senderThumbnailUrl);
         });
@@ -361,7 +418,8 @@ public class ChatServiceImpl implements ChatService {
     public ChatInviteResponseDto createInviteLink(Long chatRoomId, Long userId) {
         ChatRoom chatRoom = findChatRoomById(chatRoomId);
 
-        validateOwnerPermission(chatRoom, userId);
+        // 채팅방 접근 권한 검증
+        validateChatRoomAccess(chatRoomId, userId);
         validateChatRoomActive(chatRoom);
 
         String inviteCode = UUID.randomUUID().toString();
@@ -387,10 +445,10 @@ public class ChatServiceImpl implements ChatService {
         User inviter = findUserById(userId);
         User invitee = findUserById(requestDto.getUserId());
 
+        // 채팅방 접근 권한 검증
         validateChatRoomAccess(chatRoomId, userId);
         validateChatRoomActive(chatRoom);
 
-        // 이미 참여중인 사용자 확인
         if (isUserInChatRoom(chatRoomId, invitee.getId())) {
             throw InvalidChatRoomStateException.alreadyMember();
         }
@@ -522,33 +580,73 @@ public class ChatServiceImpl implements ChatService {
     }
 
     private ChatRoomResponseDto buildChatRoomResponse(ChatRoom chatRoom, Long currentUserId) {
-        ChatRoomResponseDto dto = ChatRoomResponseDto.from(chatRoom, currentUserId);
+        try {
+            ChatRoomResponseDto dto = ChatRoomResponseDto.from(chatRoom, currentUserId);
 
-        List<ChatRoomUser> roomUsers = chatRoomUserRepository.findAllByChatRoomId(chatRoom.getId());
-        List<ChatUserResponseDto> users = roomUsers.stream()
-                .map(roomUser -> {
-                    String thumbnailUrl = null;
-                    try {
-                        thumbnailUrl = userProfileImageService.getProfileImage(roomUser.getUser().getId()).getThumbnailImageUrl();
-                    } catch (Exception e) {
-                        log.warn("프로필 이미지 조회 실패 - 사용자: {}, 오류: {}", roomUser.getUser().getId(), e.getMessage());
-                    }
-                    return ChatUserResponseDto.from(roomUser.getUser(), thumbnailUrl);
-                })
-                .collect(Collectors.toList());
+            List<ChatRoomUser> roomUsers = chatRoomUserRepository.findAllByChatRoomIdWithUserAndProfile(chatRoom.getId());
 
-        dto.setUsers(users);
+            List<ChatUserResponseDto> users = roomUsers.stream()
+                    .map(roomUser -> {
+                        User user = roomUser.getUser();
+                        String thumbnailUrl = user.getUserProfileImage() != null ?
+                                user.getUserProfileImage().getThumbnailImageUrl() : null;
+                        return ChatUserResponseDto.from(user, thumbnailUrl);
+                    })
+                    .toList();
 
-        if (chatRoom.getOwner() != null) {
-            try {
-                String ownerThumbnailUrl = userProfileImageService.getProfileImage(chatRoom.getOwner().getId()).getThumbnailImageUrl();
-                dto.setOwnerThumbnailUrl(ownerThumbnailUrl);
-            } catch (Exception e) {
-                log.warn("방장 프로필 이미지 조회 실패 - 사용자: {}, 오류: {}", chatRoom.getOwner().getId(), e.getMessage());
+            dto.setUsers(users);
+
+            if (chatRoom.getOwner() != null && chatRoom.getOwner().getUserProfileImage() != null) {
+                dto.setOwnerThumbnailUrl(chatRoom.getOwner().getUserProfileImage().getThumbnailImageUrl());
             }
-        }
 
-        return dto;
+            // 그룹 채팅방인 경우 기본 이미지 설정
+            if (chatRoom.getType() == ChatRoomType.GROUP &&
+                    (chatRoom.getRoomImageUrl() == null || chatRoom.getRoomImageUrl().trim().isEmpty())) {
+
+                try {
+                    DefaultGroupImage defaultImage = getDefaultGroupImage(chatRoom.getId());
+
+                    return ChatRoomResponseDto.builder()
+                            .id(dto.getId())
+                            .name(dto.getName())
+                            .type(dto.getType())
+                            .owner(dto.getOwner())
+                            .users(dto.getUsers())
+                            .createdAt(dto.getCreatedAt())
+                            .lastMessageAt(dto.getLastMessageAt())
+                            .isActive(dto.isActive())
+                            .roomImageUrl(defaultImage.originalUrl())
+                            .isOwner(dto.isOwner())
+                            .inviteCode(dto.getInviteCode())
+                            .inviteCodeExpiredAt(dto.getInviteCodeExpiredAt())
+                            .build();
+                } catch (Exception e) {
+                    log.error("기본 그룹 이미지 설정 실패 - 채팅방 ID: {}, 에러: {}", chatRoom.getId(), e.getMessage(), e);
+                    // 기본 이미지 설정 실패 시 원본 DTO 반환
+                    return dto;
+                }
+            }
+
+            return dto;
+        } catch (Exception e) {
+            log.error("채팅방 응답 생성 실패 - 채팅방 ID: {}, 에러: {}", chatRoom.getId(), e.getMessage(), e);
+
+            return ChatRoomResponseDto.builder()
+                    .id(chatRoom.getId())
+                    .name(chatRoom.getName())
+                    .type(chatRoom.getType())
+                    .owner(chatRoom.getOwner() != null ? ChatUserResponseDto.from(chatRoom.getOwner()) : null)
+                    .users(List.of())
+                    .createdAt(chatRoom.getCreatedAt())
+                    .lastMessageAt(chatRoom.getLastMessageAt())
+                    .isActive(chatRoom.isActive())
+                    .roomImageUrl(chatRoom.getRoomImageUrl())
+                    .isOwner(chatRoom.isUserOwner(currentUserId))
+                    .inviteCode(chatRoom.getInviteCode())
+                    .inviteCodeExpiredAt(chatRoom.getInviteCodeExpiredAt())
+                    .build();
+        }
     }
 
     private void handleOwnerLeaving(ChatRoom chatRoom) {

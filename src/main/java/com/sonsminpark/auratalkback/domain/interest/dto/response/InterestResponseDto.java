@@ -7,7 +7,6 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Getter
 @NoArgsConstructor
@@ -29,6 +28,6 @@ public class InterestResponseDto {
     public static List<InterestResponseDto> fromList(List<Interest> interests) {
         return interests.stream()
                 .map(InterestResponseDto::from)
-                .collect(Collectors.toList());
+                .toList();
     }
 }

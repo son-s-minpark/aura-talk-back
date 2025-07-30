@@ -3,10 +3,7 @@ package com.sonsminpark.auratalkback.domain.user.service;
 import com.sonsminpark.auratalkback.domain.friend.entity.FriendStatus;
 import com.sonsminpark.auratalkback.domain.friend.service.FriendService;
 import com.sonsminpark.auratalkback.domain.user.dto.request.*;
-import com.sonsminpark.auratalkback.domain.user.dto.response.LoginResponseDto;
-import com.sonsminpark.auratalkback.domain.user.dto.response.SignUpResponseDto;
-import com.sonsminpark.auratalkback.domain.user.dto.response.MyProfileResponseDto;
-import com.sonsminpark.auratalkback.domain.user.dto.response.UserProfileResponseDto;
+import com.sonsminpark.auratalkback.domain.user.dto.response.*;
 import com.sonsminpark.auratalkback.domain.user.entity.User;
 import com.sonsminpark.auratalkback.domain.user.entity.UserStatus;
 import com.sonsminpark.auratalkback.domain.user.exception.DuplicateUserException;
@@ -22,6 +19,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.Optional;
 //import java.util.concurrent.TimeUnit;
 
 @Service
@@ -85,6 +83,56 @@ public class UserServiceImpl implements UserService {
             throw DuplicateUserException.ofEmail(signUpRequestDto.getEmail());
         }
 
+        // 30일 이내 탈퇴한 사용자가 있는지 확인
+        Optional<User> deletedUser = userRepository.findByEmailAndIsDeletedTrue(signUpRequestDto.getEmail());
+        if (deletedUser.isPresent()) {
+            User user = deletedUser.get();
+
+            // 탈퇴한 계정 복구 (30일 이내)
+            String encodedPassword = passwordEncoder.encode(signUpRequestDto.getPassword());
+
+            user = User.builder()
+                    .id(user.getId())
+                    .email(signUpRequestDto.getEmail())
+                    .password(encodedPassword)
+                    .username("사용자명")
+                    .nickname("닉네임")
+                    .status(UserStatus.ONLINE)
+                    .isDeleted(false)
+                    .deletedAt(null)
+                    .emailVerified(true) // TODO: 이메일 인증 활성화 시 해당 줄 제거하기
+                    .userInterests(new ArrayList<>())
+                    .randomChatEnabled(false)
+                    .createdAt(user.getCreatedAt())
+                    .build();
+
+            User savedUser = userRepository.save(user);
+
+            ProfileImageResponseDto profileImageDto = userProfileImageService.createDefaultProfileImage(savedUser.getId());
+
+            String token = jwtTokenProvider.createToken(savedUser.getEmail(), savedUser.getId());
+
+            MyProfileResponseDto userResponseDto = MyProfileResponseDto.builder()
+                    .id(savedUser.getId())
+                    .email(savedUser.getEmail())
+                    .username(savedUser.getUsername())
+                    .nickname(savedUser.getNickname())
+                    .description(savedUser.getDescription())
+                    .interests(savedUser.getInterests())
+                    .status(savedUser.getStatus())
+                    .randomChatEnabled(savedUser.isRandomChatEnabled())
+                    .createdAt(savedUser.getCreatedAt())
+                    .profileImage(profileImageDto)
+                    .build();
+
+            return SignUpResponseDto.builder()
+                    .userId(savedUser.getId())
+                    .token(token)
+                    .user(userResponseDto)
+                    .build();
+        }
+
+        // 30일 후 또는 새로운 사용자 - 새 계정 생성
         String encodedPassword = passwordEncoder.encode(signUpRequestDto.getPassword());
 
         User user = User.builder()
@@ -99,7 +147,7 @@ public class UserServiceImpl implements UserService {
 
         User savedUser = userRepository.save(user);
 
-        userProfileImageService.createDefaultProfileImage(savedUser.getId());
+        ProfileImageResponseDto profileImageDto = userProfileImageService.createDefaultProfileImage(savedUser.getId());
 
         // TODO: 이메일 인증 활성화 시 아래 주석 제거하기
 //        String verificationToken = emailService.generateVerificationToken(savedUser.getEmail());
@@ -108,10 +156,23 @@ public class UserServiceImpl implements UserService {
         // 토큰에 userId 추가
         String token = jwtTokenProvider.createToken(savedUser.getEmail(), savedUser.getId());
 
+        MyProfileResponseDto userResponseDto = MyProfileResponseDto.builder()
+                .id(savedUser.getId())
+                .email(savedUser.getEmail())
+                .username(savedUser.getUsername())
+                .nickname(savedUser.getNickname())
+                .description(savedUser.getDescription())
+                .interests(savedUser.getInterests())
+                .status(savedUser.getStatus())
+                .randomChatEnabled(savedUser.isRandomChatEnabled())
+                .createdAt(savedUser.getCreatedAt())
+                .profileImage(profileImageDto)
+                .build();
+
         return SignUpResponseDto.builder()
                 .userId(savedUser.getId())
                 .token(token)
-                .user(MyProfileResponseDto.from(savedUser))
+                .user(userResponseDto)
                 .build();
     }
 

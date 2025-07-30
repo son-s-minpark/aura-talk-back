@@ -15,9 +15,11 @@ import java.util.Optional;
 public interface ChatFileRepository extends JpaRepository<ChatFile, Long> {
 
     @Query("SELECT cf FROM ChatFile cf " +
+            "JOIN FETCH cf.uploader u " +
+            "LEFT JOIN FETCH u.userProfileImage " +
             "WHERE cf.chatRoom.id = :chatroomId AND cf.isDeleted = false " +
             "ORDER BY cf.createdAt DESC")
-    Page<ChatFile> findByChatRoomIdAndIsDeletedFalse(
+    Page<ChatFile> findByChatRoomIdWithUploader(
             @Param("chatroomId") Long chatroomId,
             Pageable pageable);
 

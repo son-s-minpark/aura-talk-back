@@ -12,7 +12,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 @Slf4j
 @Component
@@ -38,7 +37,7 @@ public class UserDeletionScheduler {
         List<Long> userIds = keys.stream()
                 .map(key -> key.replace("USER_DELETION:", ""))
                 .map(Long::parseLong)
-                .collect(Collectors.toList());
+                .toList();
 
         log.info("익명화 처리할 사용자 수: {}", userIds.size());
 

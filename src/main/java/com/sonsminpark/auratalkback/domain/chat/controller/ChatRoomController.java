@@ -5,13 +5,17 @@ import com.sonsminpark.auratalkback.domain.chat.dto.request.ChatRoomCreateReques
 import com.sonsminpark.auratalkback.domain.chat.dto.request.ChatRoomUpdateRequestDto;
 import com.sonsminpark.auratalkback.domain.chat.dto.request.OneToOneChatRequestDto;
 import com.sonsminpark.auratalkback.domain.chat.dto.response.ChatInviteResponseDto;
+import com.sonsminpark.auratalkback.domain.chat.dto.response.ChatRoomImageResponseDto;
 import com.sonsminpark.auratalkback.domain.chat.dto.response.ChatRoomResponseDto;
+import com.sonsminpark.auratalkback.domain.chat.dto.response.ChatUserResponseDto;
+import com.sonsminpark.auratalkback.domain.chat.service.ChatRoomImageService;
 import com.sonsminpark.auratalkback.domain.chat.service.ChatService;
 import com.sonsminpark.auratalkback.global.common.ApiResponse;
 import com.sonsminpark.auratalkback.global.jwt.JwtTokenProvider;
 import com.sonsminpark.auratalkback.global.s3.S3Service;
 import com.sonsminpark.auratalkback.global.s3.UploadType;
 import com.sonsminpark.auratalkback.global.s3.dto.request.PresignedUploadRequestDto;
+import com.sonsminpark.auratalkback.global.s3.dto.request.UploadCompletedRequestDto;
 import com.sonsminpark.auratalkback.global.s3.dto.response.PresignedUploadResponseDto;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -35,13 +39,14 @@ import java.util.List;
 public class ChatRoomController {
 
     private final ChatService chatService;
+    private final ChatRoomImageService chatRoomImageService;
     private final S3Service s3Service;
     private final JwtTokenProvider jwtTokenProvider;
 
     @PostMapping
     @Operation(
             summary = "채팅방 만들기",
-            description = "새로운 채팅방을 생성합니다. 채팅방 이미지를 설정하려면 roomImageS3Key를 포함하세요.",
+            description = "새로운 채팅방을 생성합니다. 채팅방 이미지URL을 포함할 수 있습니다.",
             security = {@SecurityRequirement(name = "bearerAuth")}
     )
     public ResponseEntity<ApiResponse<ChatRoomResponseDto>> createChatRoom(
@@ -49,8 +54,8 @@ public class ChatRoomController {
             @Valid @RequestBody ChatRoomCreateRequestDto requestDto) {
 
         Long userId = extractUserIdFromToken(authHeader);
-        log.info("채팅방 생성 요청 - 사용자: {}, 채팅방명: {}, 이미지 키: {}",
-                userId, requestDto.getName(), requestDto.getRoomImageS3Key());
+        log.info("채팅방 생성 요청 - 사용자: {}, 채팅방명: {}, 이미지 URL: {}",
+                userId, requestDto.getName(), requestDto.getRoomImageUrl());
 
         ChatRoomResponseDto responseDto = chatService.createChatRoom(requestDto, userId);
 
@@ -76,6 +81,27 @@ public class ChatRoomController {
                 s3Service.generatePresignedUploadUrl(UploadType.GROUP, presignedUploadRequestDto);
 
         return ResponseEntity.ok(ApiResponse.success("채팅방 이미지 업로드 URL이 생성되었습니다.", responseDto));
+    }
+
+    @PostMapping("/room-image/upload-complete")
+    @Operation(
+            summary = "S3 채팅방 이미지 업로드 완료 처리",
+            description = "S3에 채팅방 이미지 업로드가 완료된 후 호출합니다. 서버에서 이미지 URL을 생성하여 반환합니다.",
+            security = {@SecurityRequirement(name = "bearerAuth")}
+    )
+    public ResponseEntity<ApiResponse<ChatRoomImageResponseDto>> saveRoomImageUrl(
+            @RequestHeader("Authorization") String authHeader,
+            @Valid @RequestBody UploadCompletedRequestDto uploadCompleteRequestDto) {
+
+        Long userId = extractUserIdFromToken(authHeader);
+        log.info("채팅방 이미지 업로드 완료 처리 - 사용자: {}, S3 키: {}",
+                userId, uploadCompleteRequestDto.getS3Key());
+
+        ChatRoomImageResponseDto responseDto = chatRoomImageService.processUploadedImage(
+                uploadCompleteRequestDto.getS3Key());
+
+        log.info("채팅방 이미지 URL 생성 완료 - 원본: {}", responseDto.getOriginalImageUrl());
+        return ResponseEntity.ok(ApiResponse.success("채팅방 이미지가 성공적으로 처리되었습니다.", responseDto));
     }
 
     @PostMapping("/one-to-one")
@@ -179,7 +205,7 @@ public class ChatRoomController {
     @PostMapping("/{chatroomId}/invite")
     @Operation(
             summary = "친구에게 초대 링크 전송",
-            description = "특정 친구에게 채팅방 초대 링크를 전송합니다. 링크를 받은 친구가 수락하면 채팅방에 참여됩니다.",
+            description = "특정 친구에게 채팅방 초대 링크를 전송합니다. 링크를 받은 친구가 수락하면 채팅방에 참여됩니다. 채팅방 참여자라면 누구나 초대할 수 있습니다.",
             security = {@SecurityRequirement(name = "bearerAuth")}
     )
     public ResponseEntity<ApiResponse<ChatInviteResponseDto>> sendInviteToFriend(
@@ -201,7 +227,7 @@ public class ChatRoomController {
     @PostMapping("/{chatroomId}/invite-link")
     @Operation(
             summary = "초대 링크 생성",
-            description = "채팅방 초대 링크를 생성합니다. 방장만 생성할 수 있으며 24시간 후 만료됩니다.",
+            description = "채팅방 초대 링크를 생성합니다. 채팅방 참여자라면 누구나 생성할 수 있으며 24시간 후 만료됩니다.",
             security = {@SecurityRequirement(name = "bearerAuth")}
     )
     public ResponseEntity<ApiResponse<ChatInviteResponseDto>> createInviteLink(
@@ -217,7 +243,7 @@ public class ChatRoomController {
         log.info("초대 링크 생성 완료 - 채팅방: {}, 만료시간: {}", chatroomId, responseDto.getExpiresAt());
         return ResponseEntity.ok(ApiResponse.success("초대 링크가 생성되었습니다.", responseDto));
     }
-
+    
     @PostMapping("/join")
     @Operation(
             summary = "초대 링크로 채팅방 참여",
@@ -304,24 +330,44 @@ public class ChatRoomController {
 
     @PutMapping("/{chatroomId}/unban/{targetUserId}")
     @Operation(
-            summary = "채팅방 사용자 강퇴 해제",
-            description = "방장이 강퇴된 사용자의 강퇴를 해제합니다.",
+            summary = "채팅방 사용자 차단 해제",
+            description = "방장이 강퇴된 사용자의 차단을 해제합니다.",
             security = {@SecurityRequirement(name = "bearerAuth")}
     )
     public ResponseEntity<ApiResponse<Void>> unbanUser(
             @RequestHeader("Authorization") String authHeader,
             @Parameter(description = "채팅방 ID", required = true)
             @PathVariable Long chatroomId,
-            @Parameter(description = "강퇴 해제할 사용자 ID", required = true)
+            @Parameter(description = "채팅방 차단 해제할 사용자 ID", required = true)
             @PathVariable Long targetUserId) {
 
         Long userId = extractUserIdFromToken(authHeader);
-        log.info("사용자 강퇴 해제 요청 - 방장: {}, 채팅방: {}, 대상: {}", userId, chatroomId, targetUserId);
+        log.info("채팅방 사용자 차단 해제 요청 - 방장: {}, 채팅방: {}, 대상: {}", userId, chatroomId, targetUserId);
 
         chatService.unbanUser(chatroomId, userId, targetUserId);
 
-        log.info("사용자 강퇴 해제 완료 - 대상: {}, 채팅방: {}", targetUserId, chatroomId);
-        return ResponseEntity.ok(ApiResponse.success("사용자의 강퇴가 해제되었습니다."));
+        log.info("채팅방 사용자 차단 해제 완료 - 대상: {}, 채팅방: {}", targetUserId, chatroomId);
+        return ResponseEntity.ok(ApiResponse.success("채팅방 사용자의 차단이 해제되었습니다."));
+    }
+
+    @GetMapping("/{chatroomId}/banned-users")
+    @Operation(
+            summary = "채팅방 차단된 사용자 목록 조회",
+            description = "채팅방에서 차단된 사용자 목록을 조회합니다. 방장만 조회할 수 있습니다.",
+            security = {@SecurityRequirement(name = "bearerAuth")}
+    )
+    public ResponseEntity<ApiResponse<List<ChatUserResponseDto>>> getBannedUsers(
+            @RequestHeader("Authorization") String authHeader,
+            @Parameter(description = "채팅방 ID", required = true)
+            @PathVariable Long chatroomId) {
+
+        Long userId = extractUserIdFromToken(authHeader);
+        log.debug("차단된 사용자 목록 조회 요청 - 사용자: {}, 채팅방: {}", userId, chatroomId);
+
+        List<ChatUserResponseDto> bannedUsers = chatService.getBannedUsers(chatroomId, userId);
+
+        log.debug("차단된 사용자 목록 조회 완료 - 채팅방: {}, 차단된 사용자 수: {}", chatroomId, bannedUsers.size());
+        return ResponseEntity.ok(ApiResponse.success("차단된 사용자 목록을 성공적으로 조회했습니다.", bannedUsers));
     }
 
     @GetMapping("/search")

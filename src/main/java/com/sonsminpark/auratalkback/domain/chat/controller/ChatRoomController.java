@@ -202,6 +202,26 @@ public class ChatRoomController {
         return ResponseEntity.ok(ApiResponse.success("채팅방을 나갔습니다."));
     }
 
+    @DeleteMapping("/{chatroomId}/room-image")
+    @Operation(
+            summary = "채팅방 이미지 삭제 및 기본 이미지로 변경",
+            description = "채팅방의 이미지를 삭제하고 기본 이미지로 변경합니다. 방장만 수행할 수 있습니다.",
+            security = {@SecurityRequirement(name = "bearerAuth")}
+    )
+    public ResponseEntity<ApiResponse<ChatRoomResponseDto>> deleteRoomImage(
+            @RequestHeader("Authorization") String authHeader,
+            @Parameter(description = "채팅방 ID", required = true)
+            @PathVariable Long chatroomId) {
+
+        Long userId = extractUserIdFromToken(authHeader);
+        log.info("채팅방 이미지 삭제 요청 - 사용자: {}, 채팅방: {}", userId, chatroomId);
+
+        ChatRoomResponseDto responseDto = chatService.deleteRoomImage(chatroomId, userId);
+
+        log.info("채팅방 이미지 삭제 완료 - 채팅방: {}", chatroomId);
+        return ResponseEntity.ok(ApiResponse.success("채팅방 이미지가 성공적으로 삭제되었습니다.", responseDto));
+    }
+
     @PostMapping("/{chatroomId}/invite")
     @Operation(
             summary = "친구에게 초대 링크 전송",

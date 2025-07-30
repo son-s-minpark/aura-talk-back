@@ -14,12 +14,14 @@ import com.sonsminpark.auratalkback.domain.user.entity.User;
 import com.sonsminpark.auratalkback.domain.user.exception.UserNotFoundException;
 import com.sonsminpark.auratalkback.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
 
+@Slf4j
 @RequiredArgsConstructor
 @Service
 public class FriendServiceImpl implements FriendService {
@@ -233,5 +235,42 @@ public class FriendServiceImpl implements FriendService {
             return FriendStatus.REQUEST_RECEIVED;
 
         return FriendStatus.NONE;
+    }
+
+    @Override
+    public List<FriendListResponseDto> searchFriends(Long userId, String keyword) {
+
+        if (keyword == null || keyword.trim().isEmpty()) {
+            log.debug("검색 키워드가 비어있음 - 모든 친구 목록 반환");
+            return getFriends(userId);
+        }
+
+        List<User> friends = friendRepository.searchFriendUsers(userId, keyword.trim());
+
+        return friends.stream()
+                .map(friend -> FriendListResponseDto.from(friend, FriendStatus.FRIENDS))
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<FriendListResponseDto> searchUsers(Long currentUserId, String keyword) {
+
+
+        if (keyword == null || keyword.trim().isEmpty()) {
+            log.debug("검색 키워드가 비어있음 - 빈 목록 반환");
+            return List.of();
+        }
+
+        List<User> searchResults = userRepository.searchUsersByKeyword(currentUserId, keyword.trim());
+
+        log.info("사용자 검색 완료 - 현재 사용자: {}, 키워드: {}, 결과 수: {}", currentUserId, keyword, searchResults.size());
+
+        return searchResults.stream()
+                .map(user -> {
+                    FriendStatus status = getFriendStatus(currentUserId, user.getId());
+                    return FriendListResponseDto.from(user, status);
+                })
+                .toList();
     }
 }

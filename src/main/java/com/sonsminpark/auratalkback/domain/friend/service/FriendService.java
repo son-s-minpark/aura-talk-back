@@ -31,4 +31,7 @@ public interface FriendService {
 
     FriendStatus getFriendStatus(Long currentUserId, Long targetUserId);
 
+    List<FriendListResponseDto> searchFriends(Long userId, String keyword);
+
+    List<FriendListResponseDto> searchUsers(Long userId, String keyword);
 }

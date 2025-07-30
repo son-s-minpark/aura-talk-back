@@ -33,4 +33,14 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     @Query("SELECT u FROM User u LEFT JOIN FETCH u.userProfileImage WHERE u.id = :userId")
     Optional<User> findByIdWithProfileImage(@Param("userId") Long userId);
+
+    @Query("SELECT u FROM User u " +
+            "LEFT JOIN FETCH u.userProfileImage " +
+            "WHERE u.isDeleted = false " +
+            "AND u.id != :currentUserId " +
+            "AND (LOWER(u.username) LIKE LOWER(CONCAT('%', :keyword, '%')) " +
+            "     OR LOWER(u.nickname) LIKE LOWER(CONCAT('%', :keyword, '%'))) " +
+            "ORDER BY u.username, u.nickname")
+    List<User> searchUsersByKeyword(@Param("currentUserId") Long currentUserId, @Param("keyword") String keyword);
+
 }

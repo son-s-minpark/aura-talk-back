@@ -6,6 +6,7 @@ import com.sonsminpark.auratalkback.domain.chat.dto.response.ChatFileResponseDto
 import com.sonsminpark.auratalkback.domain.chat.entity.ChatFile;
 import com.sonsminpark.auratalkback.domain.chat.entity.ChatMessage;
 import com.sonsminpark.auratalkback.domain.chat.entity.ChatRoom;
+import com.sonsminpark.auratalkback.domain.chat.entity.ChatRoomUser;
 import com.sonsminpark.auratalkback.domain.chat.entity.MessageType;
 import com.sonsminpark.auratalkback.domain.chat.exception.*;
 import com.sonsminpark.auratalkback.domain.chat.repository.ChatFileRepository;
@@ -67,8 +68,9 @@ public class ChatFileServiceImpl implements ChatFileService {
             throw ChatAccessDeniedException.of("강퇴된 채팅방에는 파일을 업로드할 수 없습니다.");
         }
 
-        boolean isUserInChatRoom = chatRoomUserRepository.findByChatRoomIdAndUserId(chatroomId, userId).isPresent();
-        if (!isUserInChatRoom) {
+        // 중복 데이터 문제 해결
+        List<ChatRoomUser> users = chatRoomUserRepository.findByChatRoomIdAndUserId(chatroomId, userId);
+        if (users.isEmpty()) {
             throw ChatAccessDeniedException.of("채팅방에 참여하고 있지 않습니다.");
         }
     }

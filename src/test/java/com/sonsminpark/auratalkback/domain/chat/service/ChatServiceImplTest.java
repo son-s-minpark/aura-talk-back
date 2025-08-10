@@ -7,7 +7,6 @@ import com.sonsminpark.auratalkback.domain.chat.dto.request.ChatRoomUpdateReques
 import com.sonsminpark.auratalkback.domain.chat.dto.response.*;
 import com.sonsminpark.auratalkback.domain.chat.entity.*;
 import com.sonsminpark.auratalkback.domain.chat.exception.*;
-import com.sonsminpark.auratalkback.domain.chat.repository.ChatInvitationRepository;
 import com.sonsminpark.auratalkback.domain.chat.repository.ChatMessageRepository;
 import com.sonsminpark.auratalkback.domain.chat.repository.ChatRoomRepository;
 import com.sonsminpark.auratalkback.domain.chat.repository.ChatRoomUserRepository;
@@ -390,7 +389,7 @@ class ChatServiceImplTest {
                     .willReturn(Optional.of(testChatRoom));
 
             given(chatRoomUserRepository.findByChatRoomIdAndUserId(1L, 1L))
-                    .willReturn(Optional.of(testRoomUser));
+                    .willReturn(Arrays.asList(testRoomUser));
             given(chatRoomUserRepository.findAllByChatRoomIdWithUserAndProfile(1L))
                     .willReturn(Arrays.asList(testRoomUser));
 
@@ -416,7 +415,7 @@ class ChatServiceImplTest {
                     .willReturn(Optional.of(testChatRoom));
 
             given(chatRoomUserRepository.findByChatRoomIdAndUserId(1L, 2L))
-                    .willReturn(Optional.empty());
+                    .willReturn(Collections.emptyList());
 
             // When + Then
             assertThatThrownBy(() -> chatService.getChatRoomInfo(1L, 2L))
@@ -772,7 +771,7 @@ class ChatServiceImplTest {
             given(userRepository.findByIdAndIsDeletedFalse(1L))
                     .willReturn(Optional.of(testUser1));
             given(chatRoomUserRepository.findByChatRoomIdAndUserId(1L, 1L))
-                    .willReturn(Optional.of(testRoomUser));
+                    .willReturn(Arrays.asList(testRoomUser));
             given(chatMessageRepository.save(any(ChatMessage.class)))
                     .willReturn(testMessage);
 
@@ -820,7 +819,7 @@ class ChatServiceImplTest {
             given(userRepository.findByIdAndIsDeletedFalse(2L))
                     .willReturn(Optional.of(testUser2));
             given(chatRoomUserRepository.findByChatRoomIdAndUserId(1L, 2L))
-                    .willReturn(Optional.empty());
+                    .willReturn(Collections.emptyList());
 
             // When + Then
             assertThatThrownBy(() -> chatService.sendMessage(1L, requestDto, 2L))
@@ -849,7 +848,7 @@ class ChatServiceImplTest {
             given(userRepository.findByIdAndIsDeletedFalse(1L))
                     .willReturn(Optional.of(testUser1));
             given(chatRoomUserRepository.findByChatRoomIdAndUserId(1L, 1L))
-                    .willReturn(Optional.of(testRoomUser));
+                    .willReturn(Arrays.asList(testRoomUser));
 
             // When + Then
             assertThatThrownBy(() -> chatService.sendMessage(1L, requestDto, 1L))
@@ -870,7 +869,7 @@ class ChatServiceImplTest {
             Page<ChatMessage> messagePage = new PageImpl<>(messages, pageable, 1);
 
             given(chatRoomUserRepository.findByChatRoomIdAndUserId(1L, 1L))
-                    .willReturn(Optional.of(testRoomUser));
+                    .willReturn(Arrays.asList(testRoomUser));
             given(chatMessageRepository.findByChatRoomIdWithSender(1L, pageable))
                     .willReturn(messagePage);
             given(chatRoomRepository.findById(1L))
@@ -896,7 +895,7 @@ class ChatServiceImplTest {
             given(chatRoomRepository.findById(1L))
                     .willReturn(Optional.of(testChatRoom));
             given(chatRoomUserRepository.findByChatRoomIdAndUserId(1L, 2L))
-                    .willReturn(Optional.empty());
+                    .willReturn(Collections.emptyList());
 
             // When + Then
             assertThatThrownBy(() -> chatService.getMessages(1L, 2L, pageable))
@@ -962,7 +961,7 @@ class ChatServiceImplTest {
             given(userRepository.findByIdAndIsDeletedFalse(2L))
                     .willReturn(Optional.of(testUser2));
             given(chatRoomUserRepository.findByChatRoomIdAndUserId(1L, 2L))
-                    .willReturn(Optional.of(testRoomUser));
+                    .willReturn(Arrays.asList(testRoomUser));
             given(chatMessageRepository.save(any(ChatMessage.class)))
                     .willReturn(testSystemMessage);
 
@@ -983,7 +982,7 @@ class ChatServiceImplTest {
             given(userRepository.findByIdAndIsDeletedFalse(1L))
                     .willReturn(Optional.of(testUser1));
             given(chatRoomUserRepository.findByChatRoomIdAndUserId(1L, 1L))
-                    .willReturn(Optional.of(testRoomUser));
+                    .willReturn(Arrays.asList(testRoomUser));
             given(chatMessageRepository.save(any(ChatMessage.class)))
                     .willReturn(testSystemMessage);
 
@@ -1004,7 +1003,7 @@ class ChatServiceImplTest {
             given(userRepository.findByIdAndIsDeletedFalse(2L))
                     .willReturn(Optional.of(testUser2));
             given(chatRoomUserRepository.findByChatRoomIdAndUserId(1L, 2L))
-                    .willReturn(Optional.empty());
+                    .willReturn(Collections.emptyList());
 
             // When + Then
             assertThatThrownBy(() -> chatService.leaveChatRoom(1L, 2L))
@@ -1023,7 +1022,7 @@ class ChatServiceImplTest {
             given(chatRoomRepository.findById(1L))
                     .willReturn(Optional.of(testChatRoom));
             given(chatRoomUserRepository.findByChatRoomIdAndUserId(1L, 1L))
-                    .willReturn(Optional.of(testRoomUser));
+                    .willReturn(Arrays.asList(testRoomUser));
 
             // When
             ChatInviteResponseDto result = chatService.createInviteLink(1L, 1L);
@@ -1050,7 +1049,7 @@ class ChatServiceImplTest {
             given(chatRoomRepository.findById(1L))
                     .willReturn(Optional.of(inactiveChatRoom));
             given(chatRoomUserRepository.findByChatRoomIdAndUserId(1L, 1L))
-                    .willReturn(Optional.of(testRoomUser));
+                    .willReturn(Arrays.asList(testRoomUser));
 
             // When + Then
             assertThatThrownBy(() -> chatService.createInviteLink(1L, 1L))
@@ -1074,9 +1073,9 @@ class ChatServiceImplTest {
             given(userRepository.findByIdAndIsDeletedFalse(1L)).willReturn(Optional.of(testUser1));
             given(userRepository.findByIdAndIsDeletedFalse(2L)).willReturn(Optional.of(testUser2));
             given(chatRoomUserRepository.findByChatRoomIdAndUserId(1L, 1L))
-                    .willReturn(Optional.of(testRoomUser));
+                    .willReturn(Arrays.asList(testRoomUser));
             given(chatRoomUserRepository.findByChatRoomIdAndUserId(1L, 2L))
-                    .willReturn(Optional.empty());
+                    .willReturn(Collections.emptyList());
 
             // When
             ChatInviteResponseDto result = chatService.sendInviteToFriend(1L, requestDto, 1L);
@@ -1101,9 +1100,9 @@ class ChatServiceImplTest {
             given(userRepository.findByIdAndIsDeletedFalse(1L)).willReturn(Optional.of(testUser1));
             given(userRepository.findByIdAndIsDeletedFalse(2L)).willReturn(Optional.of(testUser2));
             given(chatRoomUserRepository.findByChatRoomIdAndUserId(1L, 1L))
-                    .willReturn(Optional.of(testRoomUser));
+                    .willReturn(Arrays.asList(testRoomUser));
             given(chatRoomUserRepository.findByChatRoomIdAndUserId(1L, 2L))
-                    .willReturn(Optional.of(testRoomUser2));
+                    .willReturn(Arrays.asList(testRoomUser2));
 
             // When + Then
             assertThatThrownBy(() -> chatService.sendInviteToFriend(1L, requestDto, 1L))
@@ -1134,9 +1133,9 @@ class ChatServiceImplTest {
             given(userRepository.findByIdAndIsDeletedFalse(1L)).willReturn(Optional.of(testUser1));
             given(userRepository.findByIdAndIsDeletedFalse(2L)).willReturn(Optional.of(testUser2));
             given(chatRoomUserRepository.findByChatRoomIdAndUserId(1L, 1L))
-                    .willReturn(Optional.of(testRoomUser));
+                    .willReturn(Arrays.asList(testRoomUser));
             given(chatRoomUserRepository.findByChatRoomIdAndUserId(1L, 2L))
-                    .willReturn(Optional.empty());
+                    .willReturn(Collections.emptyList());
 
             // When + Then
             assertThatThrownBy(() -> chatService.sendInviteToFriend(1L, requestDto, 1L))
@@ -1170,7 +1169,7 @@ class ChatServiceImplTest {
             given(userRepository.findByIdAndIsDeletedFalse(2L))
                     .willReturn(Optional.of(testUser2));
             given(chatRoomUserRepository.findByChatRoomIdAndUserId(1L, 2L))
-                    .willReturn(Optional.empty());
+                    .willReturn(Collections.emptyList());
             given(chatRoomUserRepository.save(any(ChatRoomUser.class)))
                     .willReturn(testRoomUser2);
             given(chatMessageRepository.save(any(ChatMessage.class)))
@@ -1270,7 +1269,7 @@ class ChatServiceImplTest {
             given(userRepository.findByIdAndIsDeletedFalse(2L))
                     .willReturn(Optional.of(testUser2));
             given(chatRoomUserRepository.findByChatRoomIdAndUserId(1L, 2L))
-                    .willReturn(Optional.of(testRoomUser2));
+                    .willReturn(Arrays.asList(testRoomUser2));
 
             // When + Then
             assertThatThrownBy(() -> chatService.acceptInvite(inviteCode, 2L))
@@ -1291,7 +1290,7 @@ class ChatServiceImplTest {
             given(userRepository.findByIdAndIsDeletedFalse(2L))
                     .willReturn(Optional.of(testUser2));
             given(chatRoomUserRepository.findByChatRoomIdAndUserId(1L, 2L))
-                    .willReturn(Optional.of(testRoomUser));
+                    .willReturn(Arrays.asList(testRoomUser));
             given(chatMessageRepository.save(any(ChatMessage.class)))
                     .willReturn(testSystemMessage);
 
@@ -1343,7 +1342,7 @@ class ChatServiceImplTest {
         void updateNotificationSettings_Success() {
             // Given
             given(chatRoomUserRepository.findByChatRoomIdAndUserId(1L, 1L))
-                    .willReturn(Optional.of(testRoomUser));
+                    .willReturn(Arrays.asList(testRoomUser));
 
             // When
             chatService.updateNotificationSettings(1L, 1L, false);
@@ -1357,7 +1356,7 @@ class ChatServiceImplTest {
         void updateNotificationSettings_NotMember() {
             // Given
             given(chatRoomUserRepository.findByChatRoomIdAndUserId(1L, 2L))
-                    .willReturn(Optional.empty());
+                    .willReturn(Collections.emptyList());
 
             // When + Then
             assertThatThrownBy(() -> chatService.updateNotificationSettings(1L, 2L, false))

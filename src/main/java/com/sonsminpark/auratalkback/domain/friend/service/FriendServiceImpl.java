@@ -273,4 +273,9 @@ public class FriendServiceImpl implements FriendService {
                 })
                 .toList();
     }
+
+    @Override
+    public List<Long> getFriendIds(Long userId) {
+        return friendRepository.findFriendIdsByUserId(userId);
+    }
 }

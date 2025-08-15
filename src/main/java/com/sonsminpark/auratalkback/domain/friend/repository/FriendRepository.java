@@ -33,4 +33,10 @@ public interface FriendRepository extends JpaRepository<Friend, Long> {
             "     OR LOWER(u.nickname) LIKE LOWER(CONCAT('%', :keyword, '%'))) " +
             "ORDER BY u.username, u.nickname")
     List<User> searchFriendUsers(@Param("userId") Long userId, @Param("keyword") String keyword);
+
+    @Query("SELECT f.user2.id FROM Friend f WHERE f.user1.id = :userId " +
+            "UNION " +
+            "SELECT f.user1.id FROM Friend f WHERE f.user2.id = :userId")
+    List<Long> findFriendIdsByUserId(@Param("userId") Long userId);
+
 }

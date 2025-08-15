@@ -34,4 +34,6 @@ public interface FriendService {
     List<FriendListResponseDto> searchFriends(Long userId, String keyword);
 
     List<FriendListResponseDto> searchUsers(Long userId, String keyword);
+
+    List<Long> getFriendIds(Long userId);
 }

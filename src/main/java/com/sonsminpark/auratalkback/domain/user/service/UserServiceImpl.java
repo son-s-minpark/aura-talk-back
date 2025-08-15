@@ -33,6 +33,7 @@ public class UserServiceImpl implements UserService {
     private final EmailService emailService;
     private final UserProfileImageService userProfileImageService;
     private final FriendService friendService;
+    private final UserStatusNotificationService userStatusNotificationService;
 
     @Override
     @Transactional
@@ -325,12 +326,10 @@ public class UserServiceImpl implements UserService {
         }
 
         user.setSecretStatus(isSecret);
-
-        // TODO: WebSocket으로 상태 변경 실시간 알림 추가
-        // notifyStatusChange(user);
+        notifyStatusChange(user);
     }
 
     private void notifyStatusChange(User user) {
-
+        userStatusNotificationService.notifyFriendsStatusChange(user);
     }
 }

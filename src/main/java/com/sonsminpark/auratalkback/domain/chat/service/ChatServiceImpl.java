@@ -206,7 +206,14 @@ public class ChatServiceImpl implements ChatService {
 
         validateChatRoomAccess(chatRoomId, userId);
 
-        return buildChatRoomResponse(chatRoom, userId);
+        // 채팅 메시지 총 개수 조회
+        long totalMessages = chatMessageRepository.countByChatRoomIdAndIsDeletedFalse(chatRoomId);
+
+        // 기본 페이지 크기 (50개)로 총 페이지 수 계산
+        int defaultPageSize = 50;
+        int totalPages = (int) Math.ceil((double) totalMessages / defaultPageSize);
+
+        return buildChatRoomResponseWithTotalPages(chatRoom, userId, totalPages);
     }
 
     @Override
@@ -682,6 +689,79 @@ public class ChatServiceImpl implements ChatService {
                     .isOwner(chatRoom.isUserOwner(currentUserId))
                     .inviteCode(chatRoom.getInviteCode())
                     .inviteCodeExpiredAt(chatRoom.getInviteCodeExpiredAt())
+                    .build();
+        }
+    }
+
+    private ChatRoomResponseDto buildChatRoomResponseWithTotalPages(ChatRoom chatRoom, Long currentUserId, Integer totalPages) {
+        try {
+            ChatRoomResponseDto dto = ChatRoomResponseDto.from(chatRoom, currentUserId, totalPages);
+
+            List<ChatRoomUser> roomUsers = chatRoomUserRepository.findAllByChatRoomIdWithUserAndProfile(chatRoom.getId());
+
+            List<ChatUserResponseDto> users = roomUsers.stream()
+                    .map(roomUser -> {
+                        User user = roomUser.getUser();
+                        String thumbnailUrl = user.getUserProfileImage() != null ?
+                                user.getUserProfileImage().getThumbnailImageUrl() : null;
+                        return ChatUserResponseDto.from(user, thumbnailUrl);
+                    })
+                    .toList();
+
+            dto.setUsers(users);
+
+            if (chatRoom.getOwner() != null && chatRoom.getOwner().getUserProfileImage() != null) {
+                dto.setOwnerThumbnailUrl(chatRoom.getOwner().getUserProfileImage().getThumbnailImageUrl());
+            }
+
+            // 그룹 채팅방인 경우 기본 이미지 설정 (DB에 없는 경우에만)
+            if (chatRoom.getType() == ChatRoomType.GROUP &&
+                    (chatRoom.getRoomImageUrl() == null || chatRoom.getRoomImageUrl().trim().isEmpty())) {
+
+                try {
+                    ChatRoomImageResponseDto defaultImage = chatRoomImageService.getDefaultImage(chatRoom.getId());
+
+                    return ChatRoomResponseDto.builder()
+                            .id(dto.getId())
+                            .name(dto.getName())
+                            .type(dto.getType())
+                            .owner(dto.getOwner())
+                            .users(dto.getUsers())
+                            .createdAt(dto.getCreatedAt())
+                            .lastMessageAt(dto.getLastMessageAt())
+                            .isActive(dto.isActive())
+                            .roomImageUrl(defaultImage.getOriginalImageUrl())
+                            .roomThumbnailImageUrl(defaultImage.getThumbnailImageUrl())
+                            .isOwner(dto.isOwner())
+                            .inviteCode(dto.getInviteCode())
+                            .inviteCodeExpiredAt(dto.getInviteCodeExpiredAt())
+                            .totalPages(totalPages)
+                            .build();
+                } catch (Exception e) {
+                    log.error("기본 그룹 이미지 설정 실패 - 채팅방 ID: {}, 에러: {}", chatRoom.getId(), e.getMessage(), e);
+                    return dto;
+                }
+            }
+
+            return dto;
+        } catch (Exception e) {
+            log.error("채팅방 응답 생성 실패 - 채팅방 ID: {}, 에러: {}", chatRoom.getId(), e.getMessage(), e);
+
+            return ChatRoomResponseDto.builder()
+                    .id(chatRoom.getId())
+                    .name(chatRoom.getName())
+                    .type(chatRoom.getType())
+                    .owner(chatRoom.getOwner() != null ? ChatUserResponseDto.from(chatRoom.getOwner()) : null)
+                    .users(List.of())
+                    .createdAt(chatRoom.getCreatedAt())
+                    .lastMessageAt(chatRoom.getLastMessageAt())
+                    .isActive(chatRoom.isActive())
+                    .roomImageUrl(chatRoom.getRoomImageUrl())
+                    .roomThumbnailImageUrl(chatRoom.getRoomThumbnailImageUrl())
+                    .isOwner(chatRoom.isUserOwner(currentUserId))
+                    .inviteCode(chatRoom.getInviteCode())
+                    .inviteCodeExpiredAt(chatRoom.getInviteCodeExpiredAt())
+                    .totalPages(totalPages)
                     .build();
         }
     }

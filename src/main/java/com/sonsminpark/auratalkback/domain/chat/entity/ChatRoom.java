@@ -3,9 +3,12 @@ package com.sonsminpark.auratalkback.domain.chat.entity;
 import com.sonsminpark.auratalkback.domain.user.entity.User;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.BatchSize;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
+import java.util.HashSet;
+import java.util.Set;
 
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -13,6 +16,18 @@ import java.time.LocalDateTime;
 @Builder
 @Entity
 @Table(name = "chat_rooms")
+@NamedEntityGraph(
+        name = "ChatRoom.withOwner",
+        attributeNodes = {
+                @NamedAttributeNode(value = "owner", subgraph = "owner.profile")
+        },
+        subgraphs = {
+                @NamedSubgraph(
+                        name = "owner.profile",
+                        attributeNodes = @NamedAttributeNode("userProfileImage")
+                )
+        }
+)
 public class ChatRoom {
 
     @Id
@@ -29,6 +44,16 @@ public class ChatRoom {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "owner_id")
     private User owner;
+
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(
+            name = "chatroom_banned_users",
+            joinColumns = @JoinColumn(name = "chatroom_id"),
+            inverseJoinColumns = @JoinColumn(name = "user_id")
+    )
+    @Builder.Default
+    @BatchSize(size = 10)
+    private Set<User> bannedUsers = new HashSet<>();
 
     @Column(nullable = false)
     @Builder.Default
@@ -47,6 +72,22 @@ public class ChatRoom {
 
     @Column
     private String roomImageUrl;
+
+    @Column
+    private String roomThumbnailImageUrl;
+
+    public void banUser(User user) {
+        this.bannedUsers.add(user);
+    }
+
+    public void unbanUser(User user) {
+        this.bannedUsers.remove(user);
+    }
+
+    public boolean isBannedUser(Long userId) {
+        return this.bannedUsers.stream()
+                .anyMatch(user -> user.getId().equals(userId));
+    }
 
     public void updateName(String name) {
         this.name = name;
@@ -73,6 +114,11 @@ public class ChatRoom {
 
     public void updateRoomImage(String imageUrl) {
         this.roomImageUrl = imageUrl;
+    }
+
+    public void updateRoomImage(String imageUrl, String thumbnailImageUrl) {
+        this.roomImageUrl = imageUrl;
+        this.roomThumbnailImageUrl = thumbnailImageUrl;
     }
 
     public boolean isUserOwner(Long userId) {

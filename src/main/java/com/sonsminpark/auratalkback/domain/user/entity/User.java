@@ -3,6 +3,7 @@ package com.sonsminpark.auratalkback.domain.user.entity;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.BatchSize;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -14,6 +15,13 @@ import java.util.List;
 @Builder
 @Entity
 @Table(name = "users")
+@NamedEntityGraph(
+        name = "User.withProfileAndInterests",
+        attributeNodes = {
+                @NamedAttributeNode("userProfileImage"),
+                @NamedAttributeNode("userInterests")
+        }
+)
 public class User {
 
     @Id
@@ -37,6 +45,7 @@ public class User {
 
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     @Builder.Default
+    @BatchSize(size = 10)
     private List<UserInterest> userInterests = new ArrayList<>();
 
     @Enumerated(EnumType.STRING)
@@ -61,7 +70,7 @@ public class User {
     @Builder.Default
     private boolean randomChatEnabled = false;
 
-    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     private UserProfileImage userProfileImage;
 
     public void updateStatus(UserStatus status) {

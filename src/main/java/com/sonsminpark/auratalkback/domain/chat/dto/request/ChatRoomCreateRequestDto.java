@@ -20,4 +20,8 @@ public class ChatRoomCreateRequestDto {
     private String name;
 
     private List<Long> userIds;
+
+    private String roomImageUrl;
+
+    private String roomThumbnailImageUrl;
 }

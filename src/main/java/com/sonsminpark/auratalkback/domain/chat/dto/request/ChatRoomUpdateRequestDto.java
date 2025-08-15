@@ -16,4 +16,6 @@ public class ChatRoomUpdateRequestDto {
     private String name;
 
     private String roomImageUrl;
+
+    private String roomThumbnailImageUrl;
 }

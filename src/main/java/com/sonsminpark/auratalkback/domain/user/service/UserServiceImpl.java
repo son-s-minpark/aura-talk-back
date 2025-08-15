@@ -47,6 +47,7 @@ public class UserServiceImpl implements UserService {
 
         // 로그인 시 ONLINE으로 변경
         user.updateStatus(UserStatus.ONLINE);
+        notifyStatusChange(user);
 
         // userId를 포함하여 토큰 생성
         String token = jwtTokenProvider.createToken(user.getEmail(), user.getId());
@@ -71,6 +72,7 @@ public class UserServiceImpl implements UserService {
 
         // 로그아웃 시 OFFLINE으로 변경
         user.updateStatus(UserStatus.OFFLINE);
+        notifyStatusChange(user);
 
         // 토큰 블랙리스트에 추가
         tokenBlacklistService.addToBlacklist(token, jwtTokenProvider.getTokenValidityInMilliseconds());

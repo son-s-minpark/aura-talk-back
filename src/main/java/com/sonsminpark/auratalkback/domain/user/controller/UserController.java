@@ -28,7 +28,10 @@ public class UserController {
     private final UserService userService;
 
     @PostMapping("/login")
-    @Operation(summary = "로그인", description = "이메일과 비밀번호를 통해 로그인합니다.")
+    @Operation(
+            summary = "로그인",
+            description = "이메일과 비밀번호를 통해 로그인합니다. 이메일 인증이 완료된 사용자만 로그인할 수 있습니다."
+    )
     public ResponseEntity<ApiResponse<LoginResponseDto>> login(@Valid @RequestBody LoginRequestDto loginRequestDto) {
         LoginResponseDto loginResponseDto = userService.login(loginRequestDto);
         return ResponseEntity.ok(ApiResponse.success("로그인에 성공했습니다.", loginResponseDto));
@@ -47,11 +50,14 @@ public class UserController {
     }
 
     @PostMapping
-    @Operation(summary = "회원가입", description = "이메일과 비밀번호로 회원가입하고 토큰을 발급받습니다.")
+    @Operation(
+            summary = "회원가입",
+            description = "이메일과 비밀번호로 회원가입하고 토큰을 발급받습니다. 회원가입 후 이메일로 6자리 인증번호가 발송됩니다."
+    )
     public ResponseEntity<ApiResponse<SignUpResponseDto>> signUp(@Valid @RequestBody SignUpRequestDto signUpRequestDto) {
         SignUpResponseDto signUpResponseDto = userService.signUp(signUpRequestDto);
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.success("회원가입이 성공적으로 완료되었습니다.", signUpResponseDto));
+                .body(ApiResponse.success("회원가입이 성공적으로 완료되었습니다. 이메일로 전송된 6자리 인증번호를 확인해주세요.", signUpResponseDto));
     }
 
     @DeleteMapping
@@ -83,7 +89,10 @@ public class UserController {
     }
 
     @PostMapping("/verify-email")
-    @Operation(summary = "이메일 인증", description = "회원가입 후 이메일 인증을 진행합니다.")
+    @Operation(
+            summary = "이메일 인증",
+            description = "회원가입 후 이메일로 전송받은 6자리 인증번호로 이메일 인증을 진행합니다."
+    )
     public ResponseEntity<ApiResponse<Void>> verifyEmail(@Valid @RequestBody EmailVerificationRequestDto emailVerificationRequestDto) {
         boolean isVerified = userService.verifyEmail(emailVerificationRequestDto);
 
@@ -91,15 +100,18 @@ public class UserController {
             return ResponseEntity.ok(ApiResponse.success("이메일 인증이 성공적으로 완료되었습니다."));
         } else {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(ApiResponse.error(ErrorCode.INVALID_INPUT_VALUE, "유효하지 않은 인증 토큰입니다."));
+                    .body(ApiResponse.error(ErrorCode.INVALID_INPUT_VALUE, "유효하지 않은 인증번호입니다."));
         }
     }
 
     @PostMapping("/resend-verification")
-    @Operation(summary = "인증 이메일 재전송", description = "이메일 인증 메일을 재전송합니다.")
+    @Operation(
+            summary = "인증번호 재전송",
+            description = "이메일로 새로운 6자리 인증번호를 재전송합니다. 기존 인증번호는 무효화됩니다."
+    )
     public ResponseEntity<ApiResponse<Void>> resendVerificationEmail(@Valid @RequestBody EmailResendRequestDto requestDto) {
         userService.resendVerificationEmail(requestDto.getEmail());
-        return ResponseEntity.ok(ApiResponse.success("인증 이메일이 재전송되었습니다."));
+        return ResponseEntity.ok(ApiResponse.success("새로운 6자리 인증번호가 이메일로 전송되었습니다."));
     }
 
     @GetMapping("/me/profile")
@@ -120,7 +132,8 @@ public class UserController {
             security = { @SecurityRequirement(name = "bearerAuth") }
     )
     public ResponseEntity<ApiResponse<UserProfileResponseDto>> getUserProfile(
-            @AuthenticationPrincipal CustomUserDetails userDetails, @PathVariable Long userId) {
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable Long userId) {
         UserProfileResponseDto userProfileResponseDto = userService.getUserProfile(userDetails.getUserId(), userId);
         return ResponseEntity.ok(ApiResponse.success("유저 프로필 조회에 성공했습니다.", userProfileResponseDto));
     }

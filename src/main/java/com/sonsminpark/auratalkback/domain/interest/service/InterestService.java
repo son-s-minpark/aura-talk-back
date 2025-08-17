@@ -13,6 +13,10 @@ import com.sonsminpark.auratalkback.global.exception.ErrorCode;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -68,6 +72,19 @@ public class InterestService {
                 .interestName(interestName)
                 .users(userDtos)
                 .build();
+    }
+
+    @Transactional(readOnly = true)
+    public Page<MyProfileResponseDto> getUsersByInterestNameWithPaging(String interestName, int page, int size) {
+        Interest interest = interestRepository.findByName(interestName)
+                .orElseThrow(() -> new InterestNotFoundException(ErrorCode.ENTITY_NOT_FOUND, "존재하지 않는 관심사입니다: " + interestName));
+
+        // 최신 사용자 순으로 정렬
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+
+        Page<User> userPage = userRepository.findActiveUsersByInterestWithPaging(interestName, pageable);
+
+        return userPage.map(MyProfileResponseDto::from);
     }
 
     @Transactional(readOnly = true)

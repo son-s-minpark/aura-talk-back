@@ -19,7 +19,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -196,6 +198,18 @@ public class ChatServiceImpl implements ChatService {
         return chatRooms.stream()
                 .map(chatRoom -> buildChatRoomResponse(chatRoom, userId))
                 .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<ChatRoomResponseDto> getChatRoomsByUserId(Long userId, int page, int size) {
+        validateUserExists(userId);
+
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "lastMessageAt"));
+
+        Page<ChatRoom> chatRoomPage = chatRoomRepository.findActiveByUserIdWithOwnerPaging(userId, pageable);
+
+        return chatRoomPage.map(chatRoom -> buildChatRoomResponse(chatRoom, userId));
     }
 
     @Override

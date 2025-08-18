@@ -21,6 +21,8 @@ public interface ChatService {
 
     List<ChatRoomResponseDto> getChatRoomsByUserId(Long userId);
 
+    Page<ChatRoomResponseDto> getChatRoomsByUserId(Long userId, int page, int size);
+
     ChatRoomResponseDto getChatRoomInfo(Long chatRoomId, Long userId);
 
     ChatRoomResponseDto updateChatRoom(Long chatRoomId, ChatRoomUpdateRequestDto requestDto, Long userId);

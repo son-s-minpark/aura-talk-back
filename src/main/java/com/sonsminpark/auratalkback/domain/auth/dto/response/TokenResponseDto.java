@@ -1,4 +1,4 @@
-package com.sonsminpark.auratalkback.domain.user.dto.response;
+package com.sonsminpark.auratalkback.domain.auth.dto.response;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -9,8 +9,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class LoginResponseDto {
+public class TokenResponseDto {
     private String accessToken;
     private String refreshToken;
-    private MyProfileResponseDto user;
 }

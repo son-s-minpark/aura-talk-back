@@ -29,6 +29,7 @@ public class ChatRoomResponseDto {
     private boolean isOwner;
     private String inviteCode;
     private LocalDateTime inviteCodeExpiredAt;
+    private Integer totalPages;
 
     public boolean isOwner() {
         return this.isOwner;
@@ -57,6 +58,12 @@ public class ChatRoomResponseDto {
         return dto;
     }
 
+    public static ChatRoomResponseDto from(ChatRoom chatRoom, Long currentUserId, Integer totalPages) {
+        ChatRoomResponseDto dto = from(chatRoom, currentUserId);
+        dto.totalPages = totalPages;
+        return dto;
+    }
+
     public void setUsers(List<ChatUserResponseDto> users) {
         this.users = users;
     }
@@ -65,5 +72,9 @@ public class ChatRoomResponseDto {
         if (this.owner != null) {
             this.owner.setThumbnailImageUrl(thumbnailImageUrl);
         }
+    }
+
+    public void setTotalPages(Integer totalPages) {
+        this.totalPages = totalPages;
     }
 }

@@ -23,5 +23,8 @@ public interface ChatMessageRepository extends JpaRepository<ChatMessage, Long> 
     @Query("SELECT cm FROM ChatMessage cm WHERE cm.id = :messageId AND cm.sender.id = :senderId AND cm.isDeleted = false")
     Optional<ChatMessage> findByIdAndSenderId(@Param("messageId") Long messageId, @Param("senderId") Long senderId);
 
+    @Query("SELECT COUNT(cm) FROM ChatMessage cm WHERE cm.chatRoom.id = :chatRoomId AND cm.isDeleted = false")
+    long countByChatRoomIdAndIsDeletedFalse(@Param("chatRoomId") Long chatRoomId);
+
     void deleteAllByChatRoomId(Long chatRoomId);
 }

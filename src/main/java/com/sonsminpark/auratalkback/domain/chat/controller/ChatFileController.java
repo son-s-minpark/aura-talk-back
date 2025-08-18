@@ -11,15 +11,15 @@ import com.sonsminpark.auratalkback.global.s3.UploadType;
 import com.sonsminpark.auratalkback.global.s3.dto.request.PresignedUploadRequestDto;
 import com.sonsminpark.auratalkback.global.s3.dto.response.PresignedUploadResponseDto;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @Slf4j
 @RestController
@@ -92,14 +92,16 @@ public class ChatFileController {
             description = "채팅방에 업로드된 파일 목록을 조회합니다.",
             security = {@SecurityRequirement(name = "bearerAuth")}
     )
-    public ResponseEntity<ApiResponse<List<ChatFileResponseDto>>> getChatRoomFiles(
+    public ResponseEntity<ApiResponse<Page<ChatFileResponseDto>>> getChatRoomFiles(
             @RequestHeader("Authorization") String authHeader,
             @PathVariable Long chatroomId,
+            @Parameter(description = "페이지 번호 (0부터 시작)", example = "0")
             @RequestParam(defaultValue = "0") int page,
+            @Parameter(description = "페이지 크기", example = "20")
             @RequestParam(defaultValue = "20") int size) {
 
         Long userId = extractUserIdFromToken(authHeader);
-        List<ChatFileResponseDto> files = chatFileService.getChatRoomFiles(chatroomId, userId, page, size);
+        Page<ChatFileResponseDto> files = chatFileService.getChatRoomFiles(chatroomId, userId, page, size);
 
         return ResponseEntity.ok(ApiResponse.success("파일 목록을 성공적으로 조회했습니다.", files));
     }

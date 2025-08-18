@@ -1,5 +1,7 @@
 package com.sonsminpark.auratalkback.domain.user.service;
 
+import com.sonsminpark.auratalkback.domain.auth.dto.response.TokenResponseDto;
+import com.sonsminpark.auratalkback.domain.auth.service.AuthService;
 import com.sonsminpark.auratalkback.domain.friend.entity.FriendStatus;
 import com.sonsminpark.auratalkback.domain.friend.service.FriendService;
 import com.sonsminpark.auratalkback.domain.user.dto.request.*;
@@ -14,14 +16,15 @@ import com.sonsminpark.auratalkback.domain.user.repository.UserRepository;
 import com.sonsminpark.auratalkback.global.jwt.JwtTokenProvider;
 import com.sonsminpark.auratalkback.global.security.TokenBlacklistService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.Optional;
-//import java.util.concurrent.TimeUnit;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class UserServiceImpl implements UserService {
@@ -33,6 +36,7 @@ public class UserServiceImpl implements UserService {
     private final EmailService emailService;
     private final UserProfileImageService userProfileImageService;
     private final FriendService friendService;
+    private final AuthService authService;  // 추가: Refresh Token 서비스
 
     @Override
     @Transactional
@@ -47,13 +51,17 @@ public class UserServiceImpl implements UserService {
         // 로그인 시 ONLINE으로 변경
         user.updateStatus(UserStatus.ONLINE);
 
-        // userId를 포함하여 토큰 생성
-        String token = jwtTokenProvider.createToken(user.getEmail(), user.getId());
+        authService.revokeAllUserTokens(user.getId());
+
+        TokenResponseDto tokens = authService.createTokenPair(user.getId(), user.getEmail());
 
         MyProfileResponseDto userResponseDto = MyProfileResponseDto.from(user);
 
+        log.info("사용자 로그인 성공 - ID: {}, 이메일: {}", user.getId(), user.getEmail());
+
         return LoginResponseDto.builder()
-                .token(token)
+                .accessToken(tokens.getAccessToken())
+                .refreshToken(tokens.getRefreshToken())
                 .user(userResponseDto)
                 .build();
     }
@@ -61,9 +69,7 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional
     public void logout(String token) {
-
         String email = jwtTokenProvider.getEmailFromToken(token);
-
 
         User user = userRepository.findByEmailAndIsDeletedFalse(email)
                 .orElseThrow(() -> UserNotFoundException.of(email, "존재하지 않는 사용자입니다."));
@@ -71,8 +77,12 @@ public class UserServiceImpl implements UserService {
         // 로그아웃 시 OFFLINE으로 변경
         user.updateStatus(UserStatus.OFFLINE);
 
-        // 토큰 블랙리스트에 추가
-        tokenBlacklistService.addToBlacklist(token, jwtTokenProvider.getTokenValidityInMilliseconds());
+        // Access Token 블랙리스트에 추가
+        tokenBlacklistService.addToBlacklist(token, jwtTokenProvider.getAccessTokenValidityInMilliseconds());
+
+        authService.revokeAllUserTokens(user.getId());
+
+        log.info("사용자 로그아웃 완료 - ID: {}, 이메일: {}", user.getId(), user.getEmail());
     }
 
     @Override
@@ -110,7 +120,7 @@ public class UserServiceImpl implements UserService {
 
             ProfileImageResponseDto profileImageDto = userProfileImageService.createDefaultProfileImage(savedUser.getId());
 
-            String token = jwtTokenProvider.createToken(savedUser.getEmail(), savedUser.getId());
+            TokenResponseDto tokens = authService.createTokenPair(savedUser.getId(), savedUser.getEmail());
 
             MyProfileResponseDto userResponseDto = MyProfileResponseDto.builder()
                     .id(savedUser.getId())
@@ -125,9 +135,12 @@ public class UserServiceImpl implements UserService {
                     .profileImage(profileImageDto)
                     .build();
 
+            log.info("계정 복구 완료 - ID: {}, 이메일: {}", savedUser.getId(), savedUser.getEmail());
+
             return SignUpResponseDto.builder()
                     .userId(savedUser.getId())
-                    .token(token)
+                    .accessToken(tokens.getAccessToken())
+                    .refreshToken(tokens.getRefreshToken())
                     .user(userResponseDto)
                     .build();
         }
@@ -153,8 +166,7 @@ public class UserServiceImpl implements UserService {
 //        String verificationToken = emailService.generateVerificationToken(savedUser.getEmail());
 //        emailService.sendVerificationEmail(savedUser.getEmail(), verificationToken);
 
-        // 토큰에 userId 추가
-        String token = jwtTokenProvider.createToken(savedUser.getEmail(), savedUser.getId());
+        TokenResponseDto tokens = authService.createTokenPair(savedUser.getId(), savedUser.getEmail());
 
         MyProfileResponseDto userResponseDto = MyProfileResponseDto.builder()
                 .id(savedUser.getId())
@@ -169,9 +181,12 @@ public class UserServiceImpl implements UserService {
                 .profileImage(profileImageDto)
                 .build();
 
+        log.info("새 계정 생성 완료 - ID: {}, 이메일: {}", savedUser.getId(), savedUser.getEmail());
+
         return SignUpResponseDto.builder()
                 .userId(savedUser.getId())
-                .token(token)
+                .accessToken(tokens.getAccessToken())
+                .refreshToken(tokens.getRefreshToken())
                 .user(userResponseDto)
                 .build();
     }
@@ -194,11 +209,15 @@ public class UserServiceImpl implements UserService {
 
         user.delete();
 
-        // 인증 토큰 관련 처리
-        tokenBlacklistService.addToBlacklist(token, jwtTokenProvider.getTokenValidityInMilliseconds());
+        // Access Token 블랙리스트에 추가
+        tokenBlacklistService.addToBlacklist(token, jwtTokenProvider.getAccessTokenValidityInMilliseconds());
+
+        authService.revokeAllUserTokens(userId);
 
         // 사용자 삭제 예약 (30일 후)
         scheduleUserDeletion(userId);
+
+        log.info("사용자 탈퇴 처리 완료 - ID: {}", userId);
     }
 
     // 사용자 정보를 30일 후 완전 삭제합니다.
@@ -233,6 +252,8 @@ public class UserServiceImpl implements UserService {
                 profileSetupRequestDto.getInterests(),
                 profileSetupRequestDto.getDescription()
         );
+
+        log.info("사용자 프로필 설정 완료 - ID: {}, 사용자명: {}", userId, profileSetupRequestDto.getUsername());
     }
 
     @Override
@@ -286,7 +307,6 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional(readOnly = true)
     public UserProfileResponseDto getUserProfile(Long currentUserId, Long targetUserId) {
-
         User user = userRepository.findByIdWithProfileImage(targetUserId)
                 .orElseThrow(() -> UserNotFoundException.of(targetUserId));
 
@@ -311,5 +331,7 @@ public class UserServiceImpl implements UserService {
         }
 
         user.updateChatSettings(randomChatEnabled);
+
+        log.info("사용자 채팅 설정 변경 완료 - ID: {}, 랜덤채팅 활성화: {}", userId, randomChatEnabled);
     }
 }

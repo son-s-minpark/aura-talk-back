@@ -7,11 +7,13 @@ import com.sonsminpark.auratalkback.domain.chat.dto.request.ChatRoomUpdateReques
 import com.sonsminpark.auratalkback.domain.chat.dto.response.*;
 import com.sonsminpark.auratalkback.domain.chat.entity.*;
 import com.sonsminpark.auratalkback.domain.chat.exception.*;
+import com.sonsminpark.auratalkback.domain.chat.repository.ChatInvitationRepository;
 import com.sonsminpark.auratalkback.domain.chat.repository.ChatMessageRepository;
 import com.sonsminpark.auratalkback.domain.chat.repository.ChatRoomRepository;
 import com.sonsminpark.auratalkback.domain.chat.repository.ChatRoomUserRepository;
 import com.sonsminpark.auratalkback.domain.user.dto.response.ProfileImageResponseDto;
 import com.sonsminpark.auratalkback.domain.user.entity.User;
+import com.sonsminpark.auratalkback.domain.user.entity.UserProfileImage;
 import com.sonsminpark.auratalkback.domain.user.entity.UserStatus;
 import com.sonsminpark.auratalkback.domain.user.exception.UserNotFoundException;
 import com.sonsminpark.auratalkback.domain.user.repository.UserRepository;
@@ -53,6 +55,9 @@ class ChatServiceImplTest {
     private ChatRoomUserRepository chatRoomUserRepository;
 
     @Mock
+    private ChatInvitationRepository chatInvitationRepository;
+
+    @Mock
     private UserRepository userRepository;
 
     @Mock
@@ -80,40 +85,50 @@ class ChatServiceImplTest {
 
     @BeforeEach
     void setUp() {
-        testUser1 = User.builder()
-                .id(1L)
-                .email("test1@example.com")
-                .username("testuser1")
-                .nickname("테스트유저1")
+        ReflectionTestUtils.setField(chatService, "bucketName", "test-bucket");
+
+        testUser1 = createTestUser(1L, "test1@example.com", "testuser1", "테스트유저1");
+        testUser2 = createTestUser(2L, "test2@example.com", "testuser2", "테스트유저2");
+        testUser3 = createTestUser(3L, "test3@example.com", "testuser3", "테스트유저3");
+
+        testChatRoom = createTestChatRoom();
+
+        testMessage = createTestMessage();
+        testSystemMessage = createTestSystemMessage();
+
+        testRoomUser = createTestChatRoomUser(testChatRoom, testUser1);
+        testRoomUser2 = createTestChatRoomUser(testChatRoom, testUser2);
+
+        testProfileImage = createTestProfileImage();
+
+        testInvitation = createTestInvitation();
+    }
+
+    private User createTestUser(Long id, String email, String username, String nickname) {
+        User user = User.builder()
+                .id(id)
+                .email(email)
+                .username(username)
+                .nickname(nickname)
                 .password("encodedPassword")
                 .status(UserStatus.ONLINE)
                 .isDeleted(false)
                 .emailVerified(true)
                 .build();
 
-        testUser2 = User.builder()
-                .id(2L)
-                .email("test2@example.com")
-                .username("testuser2")
-                .nickname("테스트유저2")
-                .password("encodedPassword")
-                .status(UserStatus.ONLINE)
-                .isDeleted(false)
-                .emailVerified(true)
+        UserProfileImage profileImage = UserProfileImage.builder()
+                .userId(id)
+                .originalImageUrl("http://test.com/profile" + id + ".png")
+                .thumbnailImageUrl("http://test.com/profile" + id + "_thumb.png")
+                .isDefaultProfileImage(false)
                 .build();
 
-        testUser3 = User.builder()
-                .id(3L)
-                .email("test3@example.com")
-                .username("testuser3")
-                .nickname("테스트유저3")
-                .password("encodedPassword")
-                .status(UserStatus.ONLINE)
-                .isDeleted(false)
-                .emailVerified(true)
-                .build();
+        ReflectionTestUtils.setField(user, "userProfileImage", profileImage);
+        return user;
+    }
 
-        testChatRoom = ChatRoom.builder()
+    private ChatRoom createTestChatRoom() {
+        return ChatRoom.builder()
                 .id(1L)
                 .name("테스트 채팅방")
                 .type(ChatRoomType.GROUP)
@@ -122,8 +137,10 @@ class ChatServiceImplTest {
                 .roomImageUrl("http://test.com/room.png")
                 .roomThumbnailImageUrl("http://test.com/room_thumb.png")
                 .build();
+    }
 
-        testMessage = ChatMessage.builder()
+    private ChatMessage createTestMessage() {
+        return ChatMessage.builder()
                 .id(1L)
                 .chatRoom(testChatRoom)
                 .sender(testUser1)
@@ -131,8 +148,10 @@ class ChatServiceImplTest {
                 .type(MessageType.TEXT)
                 .isDeleted(false)
                 .build();
+    }
 
-        testSystemMessage = ChatMessage.builder()
+    private ChatMessage createTestSystemMessage() {
+        return ChatMessage.builder()
                 .id(2L)
                 .chatRoom(testChatRoom)
                 .sender(null)
@@ -140,37 +159,34 @@ class ChatServiceImplTest {
                 .type(MessageType.SYSTEM)
                 .isDeleted(false)
                 .build();
+    }
 
-        testRoomUser = ChatRoomUser.builder()
-                .id(1L)
-                .chatRoom(testChatRoom)
-                .user(testUser1)
+    private ChatRoomUser createTestChatRoomUser(ChatRoom chatRoom, User user) {
+        return ChatRoomUser.builder()
+                .id(user.getId())
+                .chatRoom(chatRoom)
+                .user(user)
                 .notificationEnabled(true)
                 .build();
+    }
 
-        testRoomUser2 = ChatRoomUser.builder()
-                .id(2L)
-                .chatRoom(testChatRoom)
-                .user(testUser2)
-                .notificationEnabled(true)
-                .build();
-
-        testProfileImage = ProfileImageResponseDto.builder()
+    private ProfileImageResponseDto createTestProfileImage() {
+        return ProfileImageResponseDto.builder()
                 .userId(1L)
                 .originalImageUrl("http://test.com/profile.png")
                 .thumbnailImageUrl("http://test.com/profile_thumb.png")
                 .isDefaultProfileImage(true)
                 .build();
+    }
 
-        testInvitation = ChatInvitation.builder()
+    private ChatInvitation createTestInvitation() {
+        return ChatInvitation.builder()
                 .id(1L)
                 .chatRoom(testChatRoom)
                 .inviter(testUser1)
                 .invitee(testUser2)
                 .status(InvitationStatus.PENDING)
                 .build();
-
-        ReflectionTestUtils.setField(chatService, "bucketName", "test-bucket");
     }
 
     @Nested
@@ -376,384 +392,6 @@ class ChatServiceImplTest {
     }
 
     @Nested
-    @DisplayName("채팅방 정보 조회 테스트")
-    class GetChatRoomInfoTest {
-
-        @Test
-        @DisplayName("성공: 채팅방 정보 조회")
-        void getChatRoomInfo_Success() {
-            // Given
-            given(chatRoomRepository.findByIdWithOwner(1L))
-                    .willReturn(Optional.of(testChatRoom));
-            given(chatRoomRepository.findById(1L))
-                    .willReturn(Optional.of(testChatRoom));
-
-            given(chatRoomUserRepository.findByChatRoomIdAndUserId(1L, 1L))
-                    .willReturn(Arrays.asList(testRoomUser));
-            given(chatRoomUserRepository.findAllByChatRoomIdWithUserAndProfile(1L))
-                    .willReturn(Arrays.asList(testRoomUser));
-
-            // When
-            ChatRoomResponseDto result = chatService.getChatRoomInfo(1L, 1L);
-
-            // Then
-            assertThat(result).isNotNull();
-            assertThat(result.getName()).isEqualTo("테스트 채팅방");
-            assertThat(result.isOwner()).isTrue();
-
-            verify(chatRoomRepository).findByIdWithOwner(1L);
-            verify(chatRoomRepository).findById(1L);
-        }
-
-        @Test
-        @DisplayName("실패: 채팅방 접근 권한 없음")
-        void getChatRoomInfo_AccessDenied() {
-            // Given
-            given(chatRoomRepository.findByIdWithOwner(1L))
-                    .willReturn(Optional.of(testChatRoom));
-            given(chatRoomRepository.findById(1L))
-                    .willReturn(Optional.of(testChatRoom));
-
-            given(chatRoomUserRepository.findByChatRoomIdAndUserId(1L, 2L))
-                    .willReturn(Collections.emptyList());
-
-            // When + Then
-            assertThatThrownBy(() -> chatService.getChatRoomInfo(1L, 2L))
-                    .isInstanceOf(ChatAccessDeniedException.class);
-
-            verify(chatRoomRepository).findByIdWithOwner(1L);
-            verify(chatRoomRepository).findById(1L);
-        }
-    }
-
-    @Nested
-    @DisplayName("채팅방 정보 수정 테스트")
-    class UpdateChatRoomTest {
-
-        @Test
-        @DisplayName("성공: 채팅방 이름 수정")
-        void updateChatRoom_NameUpdate_Success() {
-            // Given
-            ChatRoomUpdateRequestDto requestDto = ChatRoomUpdateRequestDto.builder()
-                    .name("수정된 채팅방 이름")
-                    .build();
-
-            given(chatRoomRepository.findById(1L)).willReturn(Optional.of(testChatRoom));
-            given(chatRoomUserRepository.findAllByChatRoomIdWithUserAndProfile(1L))
-                    .willReturn(Arrays.asList(testRoomUser));
-
-            // When
-            ChatRoomResponseDto result = chatService.updateChatRoom(1L, requestDto, 1L);
-
-            // Then
-            assertThat(result).isNotNull();
-            verify(chatRoomRepository).findById(1L);
-        }
-
-        @Test
-        @DisplayName("성공: 채팅방 이미지 수정")
-        void updateChatRoom_ImageUpdate_Success() {
-            // Given
-            ChatRoomUpdateRequestDto requestDto = ChatRoomUpdateRequestDto.builder()
-                    .roomImageUrl("http://test.com/new_image.png")
-                    .roomThumbnailImageUrl("http://test.com/new_thumb.png")
-                    .build();
-
-            given(chatRoomRepository.findById(1L)).willReturn(Optional.of(testChatRoom));
-            given(chatRoomUserRepository.findAllByChatRoomIdWithUserAndProfile(1L))
-                    .willReturn(Arrays.asList(testRoomUser));
-
-            // When
-            ChatRoomResponseDto result = chatService.updateChatRoom(1L, requestDto, 1L);
-
-            // Then
-            assertThat(result).isNotNull();
-            verify(chatRoomRepository).findById(1L);
-        }
-
-        @Test
-        @DisplayName("실패: 방장이 아닌 사용자의 수정 시도")
-        void updateChatRoom_NotOwner() {
-            // Given
-            ChatRoomUpdateRequestDto requestDto = ChatRoomUpdateRequestDto.builder()
-                    .name("수정된 이름")
-                    .build();
-
-            given(chatRoomRepository.findById(1L)).willReturn(Optional.of(testChatRoom));
-
-            // When + Then
-            assertThatThrownBy(() -> chatService.updateChatRoom(1L, requestDto, 2L))
-                    .isInstanceOf(InvalidChatRoomStateException.class);
-        }
-
-        @Test
-        @DisplayName("실패: 비활성화된 채팅방")
-        void updateChatRoom_InactiveChatRoom() {
-            // Given
-            ChatRoom inactiveChatRoom = ChatRoom.builder()
-                    .id(1L)
-                    .name("비활성 채팅방")
-                    .type(ChatRoomType.GROUP)
-                    .owner(testUser1)
-                    .isActive(false)
-                    .build();
-
-            ChatRoomUpdateRequestDto requestDto = ChatRoomUpdateRequestDto.builder()
-                    .name("수정된 이름")
-                    .build();
-
-            given(chatRoomRepository.findById(1L)).willReturn(Optional.of(inactiveChatRoom));
-
-            // When + Then
-            assertThatThrownBy(() -> chatService.updateChatRoom(1L, requestDto, 1L))
-                    .isInstanceOf(InvalidChatRoomStateException.class);
-        }
-    }
-
-    @Nested
-    @DisplayName("채팅방 이미지 삭제 테스트")
-    class DeleteRoomImageTest {
-
-        @Test
-        @DisplayName("성공: 채팅방 이미지 삭제")
-        void deleteRoomImage_Success() {
-            // Given
-            given(chatRoomRepository.findById(1L)).willReturn(Optional.of(testChatRoom));
-            given(chatRoomImageService.deleteRoomImage(anyLong(), anyString(), anyString()))
-                    .willReturn(ChatRoomImageResponseDto.builder()
-                            .originalImageUrl("http://test.com/default.png")
-                            .thumbnailImageUrl("http://test.com/default_thumb.png")
-                            .isDefaultImage(true)
-                            .build());
-            given(chatRoomUserRepository.findAllByChatRoomIdWithUserAndProfile(1L))
-                    .willReturn(Arrays.asList(testRoomUser));
-
-            // When
-            ChatRoomResponseDto result = chatService.deleteRoomImage(1L, 1L);
-
-            // Then
-            assertThat(result).isNotNull();
-            verify(chatRoomImageService).deleteRoomImage(anyLong(), anyString(), anyString());
-        }
-
-        @Test
-        @DisplayName("실패: 방장이 아닌 사용자의 삭제 시도")
-        void deleteRoomImage_NotOwner() {
-            // Given
-            given(chatRoomRepository.findById(1L)).willReturn(Optional.of(testChatRoom));
-
-            // When + Then
-            assertThatThrownBy(() -> chatService.deleteRoomImage(1L, 2L))
-                    .isInstanceOf(InvalidChatRoomStateException.class);
-        }
-    }
-
-    @Nested
-    @DisplayName("채팅방 삭제 테스트")
-    class DeleteChatRoomTest {
-
-        @Test
-        @DisplayName("성공: 채팅방 완전 삭제")
-        void deleteChatRoom_Success() {
-            // Given
-            given(chatRoomRepository.findById(1L)).willReturn(Optional.of(testChatRoom));
-            given(chatMessageRepository.save(any(ChatMessage.class)))
-                    .willReturn(testSystemMessage);
-
-            // When
-            chatService.deleteChatRoom(1L, 1L);
-
-            // Then
-            verify(chatRoomUserRepository).deleteAllByChatRoomId(1L);
-            verify(chatMessageRepository).deleteAllByChatRoomId(1L);
-            verify(chatRoomRepository).delete(testChatRoom);
-        }
-
-        @Test
-        @DisplayName("실패: 방장이 아닌 사용자의 삭제 시도")
-        void deleteChatRoom_NotOwner() {
-            // Given
-            given(chatRoomRepository.findById(1L)).willReturn(Optional.of(testChatRoom));
-
-            // When + Then
-            assertThatThrownBy(() -> chatService.deleteChatRoom(1L, 2L))
-                    .isInstanceOf(InvalidChatRoomStateException.class);
-        }
-    }
-
-    @Nested
-    @DisplayName("사용자 차단 해제 테스트")
-    class UnbanUserTest {
-
-        @Test
-        @DisplayName("성공: 사용자 차단 해제")
-        void unbanUser_Success() {
-            // Given
-            Set<User> bannedUsers = new HashSet<>();
-            bannedUsers.add(testUser2);
-
-            ChatRoom chatRoomWithBannedUser = ChatRoom.builder()
-                    .id(1L)
-                    .name("테스트 채팅방")
-                    .type(ChatRoomType.GROUP)
-                    .owner(testUser1)
-                    .isActive(true)
-                    .bannedUsers(bannedUsers)
-                    .build();
-
-            given(chatRoomRepository.findById(1L)).willReturn(Optional.of(chatRoomWithBannedUser));
-            given(userRepository.findByIdAndIsDeletedFalse(2L)).willReturn(Optional.of(testUser2));
-
-            // When
-            chatService.unbanUser(1L, 1L, 2L);
-
-            // Then
-            verify(chatRoomRepository).findById(1L);
-            verify(userRepository).findByIdAndIsDeletedFalse(2L);
-        }
-
-        @Test
-        @DisplayName("실패: 방장이 아닌 사용자의 차단 해제 시도")
-        void unbanUser_NotOwner() {
-            // Given
-            given(chatRoomRepository.findById(1L)).willReturn(Optional.of(testChatRoom));
-            given(userRepository.findByIdAndIsDeletedFalse(2L)).willReturn(Optional.of(testUser2));
-
-            // When + Then
-            assertThatThrownBy(() -> chatService.unbanUser(1L, 2L, 2L))
-                    .isInstanceOf(InvalidChatRoomStateException.class);
-        }
-
-        @Test
-        @DisplayName("실패: 자기 자신의 차단 해제 시도")
-        void unbanUser_SelfUnban() {
-            // Given
-            given(chatRoomRepository.findById(1L)).willReturn(Optional.of(testChatRoom));
-            given(userRepository.findByIdAndIsDeletedFalse(1L)).willReturn(Optional.of(testUser1));
-
-            // When + Then
-            assertThatThrownBy(() -> chatService.unbanUser(1L, 1L, 1L))
-                    .isInstanceOf(IllegalArgumentException.class)
-                    .hasMessage("자기 자신의 강퇴를 해제할 수 없습니다.");
-        }
-
-        @Test
-        @DisplayName("실패: 강퇴되지 않은 사용자")
-        void unbanUser_NotBannedUser() {
-            // Given
-            given(chatRoomRepository.findById(1L)).willReturn(Optional.of(testChatRoom));
-            given(userRepository.findByIdAndIsDeletedFalse(2L)).willReturn(Optional.of(testUser2));
-
-            // When + Then
-            assertThatThrownBy(() -> chatService.unbanUser(1L, 1L, 2L))
-                    .isInstanceOf(IllegalArgumentException.class)
-                    .hasMessage("강퇴되지 않은 사용자입니다.");
-        }
-    }
-
-    @Nested
-    @DisplayName("차단된 사용자 목록 조회 테스트")
-    class GetBannedUsersTest {
-
-        @Test
-        @DisplayName("성공: 차단된 사용자 목록 조회")
-        void getBannedUsers_Success() {
-            // Given
-            Set<User> bannedUsers = new HashSet<>();
-            bannedUsers.add(testUser2);
-
-            ChatRoom chatRoomWithBannedUsers = ChatRoom.builder()
-                    .id(1L)
-                    .name("테스트 채팅방")
-                    .type(ChatRoomType.GROUP)
-                    .owner(testUser1)
-                    .isActive(true)
-                    .bannedUsers(bannedUsers)
-                    .build();
-
-            given(chatRoomRepository.findByIdWithBannedUsers(1L))
-                    .willReturn(Optional.of(chatRoomWithBannedUsers));
-
-            // When
-            List<ChatUserResponseDto> result = chatService.getBannedUsers(1L, 1L);
-
-            // Then
-            assertThat(result).isNotNull();
-            assertThat(result).hasSize(1);
-            assertThat(result.get(0).getId()).isEqualTo(2L);
-
-            verify(chatRoomRepository).findByIdWithBannedUsers(1L);
-        }
-
-        @Test
-        @DisplayName("실패: 방장이 아닌 사용자의 조회 시도")
-        void getBannedUsers_NotOwner() {
-            // Given
-            given(chatRoomRepository.findByIdWithBannedUsers(1L))
-                    .willReturn(Optional.of(testChatRoom));
-
-            // When + Then
-            assertThatThrownBy(() -> chatService.getBannedUsers(1L, 2L))
-                    .isInstanceOf(InvalidChatRoomStateException.class);
-        }
-    }
-
-    @Nested
-    @DisplayName("채팅방 검색 테스트")
-    class SearchChatRoomsTest {
-
-        @Test
-        @DisplayName("성공: 채팅방 검색")
-        void searchChatRooms_Success() {
-            // Given
-            List<ChatRoom> searchResults = Arrays.asList(testChatRoom);
-
-            given(userRepository.existsById(1L)).willReturn(true);
-            given(chatRoomRepository.searchByNameAndUserId("테스트", 1L))
-                    .willReturn(searchResults);
-            given(chatRoomUserRepository.findAllByChatRoomIdWithUserAndProfile(1L))
-                    .willReturn(Arrays.asList(testRoomUser));
-
-            // When
-            List<ChatRoomResponseDto> result = chatService.searchChatRooms("테스트", 1L);
-
-            // Then
-            assertThat(result).isNotNull();
-            assertThat(result).hasSize(1);
-            assertThat(result.get(0).getName()).isEqualTo("테스트 채팅방");
-
-            verify(chatRoomRepository).searchByNameAndUserId("테스트", 1L);
-        }
-
-        @Test
-        @DisplayName("성공: 빈 키워드로 검색")
-        void searchChatRooms_EmptyKeyword() {
-            // Given
-            given(userRepository.existsById(1L)).willReturn(true);
-
-            // When
-            List<ChatRoomResponseDto> result = chatService.searchChatRooms("", 1L);
-
-            // Then
-            assertThat(result).isNotNull();
-            assertThat(result).isEmpty();
-
-            verify(chatRoomRepository, never()).searchByNameAndUserId(anyString(), anyLong());
-        }
-
-        @Test
-        @DisplayName("실패: 존재하지 않는 사용자")
-        void searchChatRooms_UserNotFound() {
-            // Given
-            given(userRepository.existsById(999L)).willReturn(false);
-
-            // When + Then
-            assertThatThrownBy(() -> chatService.searchChatRooms("테스트", 999L))
-                    .isInstanceOf(UserNotFoundException.class);
-        }
-    }
-
-    @Nested
     @DisplayName("메시지 전송 테스트")
     class SendMessageTest {
 
@@ -785,7 +423,6 @@ class ChatServiceImplTest {
             assertThat(result.getSender().getId()).isEqualTo(1L);
 
             verify(chatMessageRepository).save(any(ChatMessage.class));
-            verify(messagingTemplate).convertAndSend(eq("/topic/chatroom/1"), any(ChatMessageResponseDto.class));
         }
 
         @Test
@@ -803,27 +440,6 @@ class ChatServiceImplTest {
             // When + Then
             assertThatThrownBy(() -> chatService.sendMessage(999L, requestDto, 1L))
                     .isInstanceOf(ChatRoomNotFoundException.class);
-        }
-
-        @Test
-        @DisplayName("실패: 채팅방 멤버가 아닌 사용자")
-        void sendMessage_NotMember() {
-            // Given
-            ChatMessageRequestDto requestDto = ChatMessageRequestDto.builder()
-                    .content("안녕하세요!")
-                    .type(MessageType.TEXT)
-                    .build();
-
-            given(chatRoomRepository.findById(1L))
-                    .willReturn(Optional.of(testChatRoom));
-            given(userRepository.findByIdAndIsDeletedFalse(2L))
-                    .willReturn(Optional.of(testUser2));
-            given(chatRoomUserRepository.findByChatRoomIdAndUserId(1L, 2L))
-                    .willReturn(Collections.emptyList());
-
-            // When + Then
-            assertThatThrownBy(() -> chatService.sendMessage(1L, requestDto, 2L))
-                    .isInstanceOf(ChatAccessDeniedException.class);
         }
 
         @Test
@@ -934,81 +550,6 @@ class ChatServiceImplTest {
             assertThatThrownBy(() -> chatService.deleteMessage(999L, 1L))
                     .isInstanceOf(MessageNotFoundException.class);
         }
-
-        @Test
-        @DisplayName("실패: 다른 사용자의 메시지 삭제 시도")
-        void deleteMessage_NotOwner() {
-            // Given
-            given(chatMessageRepository.findByIdAndSenderId(1L, 2L))
-                    .willReturn(Optional.empty());
-
-            // When + Then
-            assertThatThrownBy(() -> chatService.deleteMessage(1L, 2L))
-                    .isInstanceOf(MessageNotFoundException.class);
-        }
-    }
-
-    @Nested
-    @DisplayName("채팅방 나가기 테스트")
-    class LeaveChatRoomTest {
-
-        @Test
-        @DisplayName("성공: 일반 멤버가 채팅방 나가기")
-        void leaveChatRoom_Member_Success() {
-            // Given
-            given(chatRoomRepository.findById(1L))
-                    .willReturn(Optional.of(testChatRoom));
-            given(userRepository.findByIdAndIsDeletedFalse(2L))
-                    .willReturn(Optional.of(testUser2));
-            given(chatRoomUserRepository.findByChatRoomIdAndUserId(1L, 2L))
-                    .willReturn(Arrays.asList(testRoomUser));
-            given(chatMessageRepository.save(any(ChatMessage.class)))
-                    .willReturn(testSystemMessage);
-
-            // When
-            chatService.leaveChatRoom(1L, 2L);
-
-            // Then
-            verify(chatRoomUserRepository).delete(testRoomUser);
-            verify(chatMessageRepository).save(any(ChatMessage.class));
-        }
-
-        @Test
-        @DisplayName("성공: 방장이 채팅방 나가기 (채팅방 비활성화)")
-        void leaveChatRoom_Owner_Success() {
-            // Given
-            given(chatRoomRepository.findById(1L))
-                    .willReturn(Optional.of(testChatRoom));
-            given(userRepository.findByIdAndIsDeletedFalse(1L))
-                    .willReturn(Optional.of(testUser1));
-            given(chatRoomUserRepository.findByChatRoomIdAndUserId(1L, 1L))
-                    .willReturn(Arrays.asList(testRoomUser));
-            given(chatMessageRepository.save(any(ChatMessage.class)))
-                    .willReturn(testSystemMessage);
-
-            // When
-            chatService.leaveChatRoom(1L, 1L);
-
-            // Then
-            verify(chatRoomUserRepository).delete(testRoomUser);
-            verify(chatMessageRepository).save(any(ChatMessage.class));
-        }
-
-        @Test
-        @DisplayName("실패: 채팅방 멤버가 아닌 사용자")
-        void leaveChatRoom_NotMember() {
-            // Given
-            given(chatRoomRepository.findById(1L))
-                    .willReturn(Optional.of(testChatRoom));
-            given(userRepository.findByIdAndIsDeletedFalse(2L))
-                    .willReturn(Optional.of(testUser2));
-            given(chatRoomUserRepository.findByChatRoomIdAndUserId(1L, 2L))
-                    .willReturn(Collections.emptyList());
-
-            // When + Then
-            assertThatThrownBy(() -> chatService.leaveChatRoom(1L, 2L))
-                    .isInstanceOf(InvalidChatRoomStateException.class);
-        }
     }
 
     @Nested
@@ -1054,93 +595,6 @@ class ChatServiceImplTest {
             // When + Then
             assertThatThrownBy(() -> chatService.createInviteLink(1L, 1L))
                     .isInstanceOf(InvalidChatRoomStateException.class);
-        }
-    }
-
-    @Nested
-    @DisplayName("친구 초대 테스트")
-    class SendInviteToFriendTest {
-
-        @Test
-        @DisplayName("성공: 친구에게 초대 링크 전송")
-        void sendInviteToFriend_Success() {
-            // Given
-            ChatInviteRequestDto requestDto = ChatInviteRequestDto.builder()
-                    .userId(2L)
-                    .build();
-
-            given(chatRoomRepository.findById(1L)).willReturn(Optional.of(testChatRoom));
-            given(userRepository.findByIdAndIsDeletedFalse(1L)).willReturn(Optional.of(testUser1));
-            given(userRepository.findByIdAndIsDeletedFalse(2L)).willReturn(Optional.of(testUser2));
-            given(chatRoomUserRepository.findByChatRoomIdAndUserId(1L, 1L))
-                    .willReturn(Arrays.asList(testRoomUser));
-            given(chatRoomUserRepository.findByChatRoomIdAndUserId(1L, 2L))
-                    .willReturn(Collections.emptyList());
-
-            // When
-            ChatInviteResponseDto result = chatService.sendInviteToFriend(1L, requestDto, 1L);
-
-            // Then
-            assertThat(result).isNotNull();
-            assertThat(result.getInviteCode()).isNotNull();
-            assertThat(result.getInviteLink()).startsWith("https://auratalk.com/invite/");
-
-            verify(messagingTemplate).convertAndSendToUser(anyString(), anyString(), anyString());
-        }
-
-        @Test
-        @DisplayName("실패: 이미 채팅방에 참여중인 사용자 초대")
-        void sendInviteToFriend_AlreadyMember() {
-            // Given
-            ChatInviteRequestDto requestDto = ChatInviteRequestDto.builder()
-                    .userId(2L)
-                    .build();
-
-            given(chatRoomRepository.findById(1L)).willReturn(Optional.of(testChatRoom));
-            given(userRepository.findByIdAndIsDeletedFalse(1L)).willReturn(Optional.of(testUser1));
-            given(userRepository.findByIdAndIsDeletedFalse(2L)).willReturn(Optional.of(testUser2));
-            given(chatRoomUserRepository.findByChatRoomIdAndUserId(1L, 1L))
-                    .willReturn(Arrays.asList(testRoomUser));
-            given(chatRoomUserRepository.findByChatRoomIdAndUserId(1L, 2L))
-                    .willReturn(Arrays.asList(testRoomUser2));
-
-            // When + Then
-            assertThatThrownBy(() -> chatService.sendInviteToFriend(1L, requestDto, 1L))
-                    .isInstanceOf(InvalidChatRoomStateException.class);
-        }
-
-        @Test
-        @DisplayName("실패: 강퇴된 사용자 초대")
-        void sendInviteToFriend_BannedUser() {
-            // Given
-            Set<User> bannedUsers = new HashSet<>();
-            bannedUsers.add(testUser2);
-
-            ChatRoom chatRoomWithBannedUser = ChatRoom.builder()
-                    .id(1L)
-                    .name("테스트 채팅방")
-                    .type(ChatRoomType.GROUP)
-                    .owner(testUser1)
-                    .isActive(true)
-                    .bannedUsers(bannedUsers)
-                    .build();
-
-            ChatInviteRequestDto requestDto = ChatInviteRequestDto.builder()
-                    .userId(2L)
-                    .build();
-
-            given(chatRoomRepository.findById(1L)).willReturn(Optional.of(chatRoomWithBannedUser));
-            given(userRepository.findByIdAndIsDeletedFalse(1L)).willReturn(Optional.of(testUser1));
-            given(userRepository.findByIdAndIsDeletedFalse(2L)).willReturn(Optional.of(testUser2));
-            given(chatRoomUserRepository.findByChatRoomIdAndUserId(1L, 1L))
-                    .willReturn(Arrays.asList(testRoomUser));
-            given(chatRoomUserRepository.findByChatRoomIdAndUserId(1L, 2L))
-                    .willReturn(Collections.emptyList());
-
-            // When + Then
-            assertThatThrownBy(() -> chatService.sendInviteToFriend(1L, requestDto, 1L))
-                    .isInstanceOf(IllegalArgumentException.class)
-                    .hasMessage("강퇴된 사용자는 초대할 수 없습니다.");
         }
     }
 
@@ -1220,70 +674,15 @@ class ChatServiceImplTest {
             assertThatThrownBy(() -> chatService.acceptInvite(inviteCode, 2L))
                     .isInstanceOf(ChatInvitationException.class);
         }
-
-        @Test
-        @DisplayName("실패: 강퇴된 사용자의 참여 시도")
-        void acceptInvite_BannedUser() {
-            // Given
-            String inviteCode = "test-invite-code";
-            Set<User> bannedUsers = new HashSet<>();
-            bannedUsers.add(testUser2);
-
-            ChatRoom chatRoomWithBannedUser = ChatRoom.builder()
-                    .id(1L)
-                    .name("테스트 채팅방")
-                    .type(ChatRoomType.GROUP)
-                    .owner(testUser1)
-                    .isActive(true)
-                    .inviteCode(inviteCode)
-                    .inviteCodeExpiredAt(LocalDateTime.now().plusHours(24))
-                    .bannedUsers(bannedUsers)
-                    .build();
-
-            given(chatRoomRepository.findByInviteCodeAndIsActiveTrue(inviteCode))
-                    .willReturn(Optional.of(chatRoomWithBannedUser));
-
-            // When + Then
-            assertThatThrownBy(() -> chatService.acceptInvite(inviteCode, 2L))
-                    .isInstanceOf(ChatRoomBannedException.class);
-        }
-
-        @Test
-        @DisplayName("실패: 이미 채팅방에 참여중인 사용자")
-        void acceptInvite_AlreadyMember() {
-            // Given
-            String inviteCode = "test-invite-code";
-
-            ChatRoom inviteChatRoom = ChatRoom.builder()
-                    .id(1L)
-                    .name("테스트 채팅방")
-                    .type(ChatRoomType.GROUP)
-                    .owner(testUser1)
-                    .isActive(true)
-                    .inviteCode(inviteCode)
-                    .inviteCodeExpiredAt(LocalDateTime.now().plusHours(24))
-                    .build();
-
-            given(chatRoomRepository.findByInviteCodeAndIsActiveTrue(inviteCode))
-                    .willReturn(Optional.of(inviteChatRoom));
-            given(userRepository.findByIdAndIsDeletedFalse(2L))
-                    .willReturn(Optional.of(testUser2));
-            given(chatRoomUserRepository.findByChatRoomIdAndUserId(1L, 2L))
-                    .willReturn(Arrays.asList(testRoomUser2));
-
-            // When + Then
-            assertThatThrownBy(() -> chatService.acceptInvite(inviteCode, 2L))
-                    .isInstanceOf(InvalidChatRoomStateException.class);
-        }
     }
 
     @Nested
-    @DisplayName("사용자 강퇴 테스트")
-    class KickUserTest {
+    @DisplayName("채팅방 나가기 테스트")
+    class LeaveChatRoomTest {
 
         @Test
-        @DisplayName("성공: 사용자 강퇴")
-        void kickUser_Success() {
+        @DisplayName("성공: 일반 멤버가 채팅방 나가기")
+        void leaveChatRoom_Member_Success() {
             // Given
             given(chatRoomRepository.findById(1L))
                     .willReturn(Optional.of(testChatRoom));
@@ -1295,41 +694,27 @@ class ChatServiceImplTest {
                     .willReturn(testSystemMessage);
 
             // When
-            chatService.kickUser(1L, 1L, 2L);
+            chatService.leaveChatRoom(1L, 2L);
 
             // Then
             verify(chatRoomUserRepository).delete(testRoomUser);
             verify(chatMessageRepository).save(any(ChatMessage.class));
-            verify(messagingTemplate).convertAndSendToUser(anyString(), anyString(), anyString());
         }
 
         @Test
-        @DisplayName("실패: 방장이 아닌 사용자의 강퇴 시도")
-        void kickUser_NotOwner() {
+        @DisplayName("실패: 채팅방 멤버가 아닌 사용자")
+        void leaveChatRoom_NotMember() {
             // Given
             given(chatRoomRepository.findById(1L))
                     .willReturn(Optional.of(testChatRoom));
-            given(userRepository.findByIdAndIsDeletedFalse(1L))
-                    .willReturn(Optional.of(testUser1));
+            given(userRepository.findByIdAndIsDeletedFalse(2L))
+                    .willReturn(Optional.of(testUser2));
+            given(chatRoomUserRepository.findByChatRoomIdAndUserId(1L, 2L))
+                    .willReturn(Collections.emptyList());
 
             // When + Then
-            assertThatThrownBy(() -> chatService.kickUser(1L, 2L, 1L))
+            assertThatThrownBy(() -> chatService.leaveChatRoom(1L, 2L))
                     .isInstanceOf(InvalidChatRoomStateException.class);
-        }
-
-        @Test
-        @DisplayName("실패: 자기 자신 강퇴 시도")
-        void kickUser_SelfKick() {
-            // Given
-            given(chatRoomRepository.findById(1L))
-                    .willReturn(Optional.of(testChatRoom));
-            given(userRepository.findByIdAndIsDeletedFalse(1L))
-                    .willReturn(Optional.of(testUser1));
-
-            // When + Then
-            assertThatThrownBy(() -> chatService.kickUser(1L, 1L, 1L))
-                    .isInstanceOf(IllegalArgumentException.class)
-                    .hasMessage("자기 자신을 강퇴할 수 없습니다.");
         }
     }
 

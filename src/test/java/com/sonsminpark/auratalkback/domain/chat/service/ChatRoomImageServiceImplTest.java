@@ -10,16 +10,12 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.*;
 
 @ExtendWith(MockitoExtension.class)
-@TestPropertySource(properties = {
-        "cloud.aws.s3.bucket=test-bucket"
-})
 @DisplayName("ChatRoomImageService 테스트")
 class ChatRoomImageServiceImplTest {
 
@@ -152,6 +148,22 @@ class ChatRoomImageServiceImplTest {
             assertThat(result).isNotNull();
             assertThat(result.getOriginalImageUrl()).isEqualTo("https://test-bucket.s3.amazonaws.com/group-images/default/1.png");
             assertThat(result.getThumbnailImageUrl()).isEqualTo("https://test-bucket.s3.amazonaws.com/group-images/default/1_thumb.png");
+            assertThat(result.isDefaultImage()).isTrue();
+        }
+
+        @Test
+        @DisplayName("성공: 채팅방 ID 3번의 기본 이미지")
+        void getDefaultImage_Id3() {
+            // Given
+            Long chatRoomId = 3L;
+
+            // When
+            ChatRoomImageResponseDto result = chatRoomImageService.getDefaultImage(chatRoomId);
+
+            // Then
+            assertThat(result).isNotNull();
+            assertThat(result.getOriginalImageUrl()).isEqualTo("https://test-bucket.s3.amazonaws.com/group-images/default/2.png");
+            assertThat(result.getThumbnailImageUrl()).isEqualTo("https://test-bucket.s3.amazonaws.com/group-images/default/2_thumb.png");
             assertThat(result.isDefaultImage()).isTrue();
         }
 

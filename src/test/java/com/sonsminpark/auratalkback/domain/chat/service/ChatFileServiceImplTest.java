@@ -24,7 +24,6 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.util.ReflectionTestUtils;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
@@ -41,9 +40,6 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-@TestPropertySource(properties = {
-        "cloud.aws.s3.bucket=test-bucket"
-})
 @DisplayName("ChatFileService 테스트")
 class ChatFileServiceImplTest {
 
@@ -359,13 +355,13 @@ class ChatFileServiceImplTest {
             when(chatFileRepository.findByChatRoomIdWithUploader(eq(1L), any(Pageable.class))).thenReturn(filePage);
 
             // When
-            List<ChatFileResponseDto> result = chatFileService.getChatRoomFiles(1L, 1L, 0, 20);
+            Page<ChatFileResponseDto> result = chatFileService.getChatRoomFiles(1L, 1L, 0, 20);
 
             // Then
             assertThat(result).isNotNull();
-            assertThat(result).hasSize(1);
-            assertThat(result.get(0).getOriginalFileName()).isEqualTo("test.jpg");
-            assertThat(result.get(0).getUploader().getNickname()).isEqualTo("테스트유저");
+            assertThat(result.getContent()).hasSize(1);
+            assertThat(result.getContent().get(0).getOriginalFileName()).isEqualTo("test.jpg");
+            assertThat(result.getContent().get(0).getUploader().getNickname()).isEqualTo("테스트유저");
 
             verify(chatFileRepository).findByChatRoomIdWithUploader(eq(1L), any(Pageable.class));
         }
@@ -382,11 +378,11 @@ class ChatFileServiceImplTest {
             when(chatFileRepository.findByChatRoomIdWithUploader(eq(1L), any(Pageable.class))).thenReturn(emptyPage);
 
             // When
-            List<ChatFileResponseDto> result = chatFileService.getChatRoomFiles(1L, 1L, 0, 20);
+            Page<ChatFileResponseDto> result = chatFileService.getChatRoomFiles(1L, 1L, 0, 20);
 
             // Then
             assertThat(result).isNotNull();
-            assertThat(result).isEmpty();
+            assertThat(result.getContent()).isEmpty();
         }
     }
 

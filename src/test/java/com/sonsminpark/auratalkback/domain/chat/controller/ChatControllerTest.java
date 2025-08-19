@@ -195,7 +195,9 @@ class ChatControllerTest {
             mockMvc.perform(get("/api/chats/invalid")
                             .header("Authorization", "Bearer test-token"))
                     .andDo(print())
-                    .andExpect(status().isBadRequest());
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.success").value(false))
+                    .andExpect(jsonPath("$.code").value(402)); // INVALID_TYPE_VALUE
         }
 
         @Test
@@ -209,7 +211,9 @@ class ChatControllerTest {
             mockMvc.perform(get("/api/chats/1")
                             .header("Authorization", "Bearer invalid-token"))
                     .andDo(print())
-                    .andExpect(status().isInternalServerError());
+                    .andExpect(status().isInternalServerError())
+                    .andExpect(jsonPath("$.success").value(false))
+                    .andExpect(jsonPath("$.code").value(500));
         }
     }
 
@@ -276,7 +280,9 @@ class ChatControllerTest {
             mockMvc.perform(delete("/api/chats/invalid")
                             .header("Authorization", "Bearer test-token"))
                     .andDo(print())
-                    .andExpect(status().isBadRequest());
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.success").value(false))
+                    .andExpect(jsonPath("$.code").value(402)); // INVALID_TYPE_VALUE
         }
     }
 
@@ -308,21 +314,25 @@ class ChatControllerTest {
             // When + Then - 헤더가 없으면 NullPointerException 발생
             mockMvc.perform(get("/api/chats/1"))
                     .andDo(print())
-                    .andExpect(status().isInternalServerError());
+                    .andExpect(status().isInternalServerError())
+                    .andExpect(jsonPath("$.success").value(false))
+                    .andExpect(jsonPath("$.code").value(500));
         }
 
         @Test
         @DisplayName("실패: 잘못된 Authorization 헤더 형식 - Bearer 없음")
         void invalidAuthorizationHeaderFormat_NoBearer() throws Exception {
-            // Given - "InvalidToken"을 substring(7)하면 "dToken"
-            given(jwtTokenProvider.getUserIdFromToken("dToken"))
+            // Given - "InvalidToken"을 substring(7)하면 "oken"이 되고, 이는 유효하지 않은 토큰
+            given(jwtTokenProvider.getUserIdFromToken("oken"))
                     .willThrow(new RuntimeException("Invalid token format"));
 
             // When + Then
             mockMvc.perform(get("/api/chats/1")
                             .header("Authorization", "InvalidToken"))
                     .andDo(print())
-                    .andExpect(status().isInternalServerError());
+                    .andExpect(status().isInternalServerError())
+                    .andExpect(jsonPath("$.success").value(false))
+                    .andExpect(jsonPath("$.code").value(500));
         }
 
         @Test
@@ -332,7 +342,9 @@ class ChatControllerTest {
             mockMvc.perform(get("/api/chats/1")
                             .header("Authorization", "short"))
                     .andDo(print())
-                    .andExpect(status().isInternalServerError());
+                    .andExpect(status().isInternalServerError())
+                    .andExpect(jsonPath("$.success").value(false))
+                    .andExpect(jsonPath("$.code").value(500));
         }
 
         @Test
@@ -345,7 +357,9 @@ class ChatControllerTest {
             mockMvc.perform(get("/api/chats/1")
                             .header("Authorization", "Bearer "))
                     .andDo(print())
-                    .andExpect(status().isInternalServerError());
+                    .andExpect(status().isInternalServerError())
+                    .andExpect(jsonPath("$.success").value(false))
+                    .andExpect(jsonPath("$.code").value(500));
         }
 
         @Test
@@ -358,7 +372,9 @@ class ChatControllerTest {
             mockMvc.perform(get("/api/chats/1")
                             .header("Authorization", "Bearer  "))
                     .andDo(print())
-                    .andExpect(status().isInternalServerError());
+                    .andExpect(status().isInternalServerError())
+                    .andExpect(jsonPath("$.success").value(false))
+                    .andExpect(jsonPath("$.code").value(500));
         }
     }
 

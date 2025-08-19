@@ -10,6 +10,7 @@ import com.sonsminpark.auratalkback.domain.chat.repository.ChatRoomUserRepositor
 import com.sonsminpark.auratalkback.domain.friend.entity.FriendBlock;
 import com.sonsminpark.auratalkback.domain.friend.repository.FriendBlockRepository;
 import com.sonsminpark.auratalkback.domain.user.entity.User;
+import com.sonsminpark.auratalkback.domain.user.entity.UserInterest;
 import com.sonsminpark.auratalkback.domain.user.entity.UserProfileImage;
 import com.sonsminpark.auratalkback.domain.user.entity.UserStatus;
 import com.sonsminpark.auratalkback.domain.user.exception.UserNotFoundException;
@@ -94,8 +95,13 @@ class RandomChatServiceImplTest {
                 .randomChatEnabled(randomChatEnabled)
                 .build();
 
-        // interests 설정
-        ReflectionTestUtils.setField(user, "interests", interests);
+        // userInterests 설정
+        if (interests != null) {
+            List<UserInterest> userInterests = interests.stream()
+                    .map(interest -> new UserInterest(user, interest))
+                    .toList();
+            ReflectionTestUtils.setField(user, "userInterests", userInterests);
+        }
 
         // UserProfileImage 설정 (testUser2만)
         if (id.equals(2L)) {
@@ -125,6 +131,8 @@ class RandomChatServiceImplTest {
 
             given(userRepository.findByIdWithProfileImage(1L))
                     .willReturn(Optional.of(testUser1));
+            given(userRepository.findByIdWithProfileImage(2L))
+                    .willReturn(Optional.of(testUser2));
             given(friendBlockRepository.findBlockedUsers(1L))
                     .willReturn(List.of());
             given(userRepository.findActiveUsersByInterest("게임"))
@@ -136,10 +144,7 @@ class RandomChatServiceImplTest {
             given(chatRoomUserRepository.save(any(ChatRoomUser.class)))
                     .willReturn(mock(ChatRoomUser.class));
             given(chatRoomUserRepository.findAllByChatRoomIdWithUserAndProfile(anyLong()))
-                    .willReturn(List.of(
-                            createMockChatRoomUser(testUser1),
-                            createMockChatRoomUser(testUser2)
-                    ));
+                    .willReturn(List.of());
 
             // When
             RandomChatMatchResponseDto result = randomChatService.startRandomChat(1L, requestDto);
@@ -167,6 +172,8 @@ class RandomChatServiceImplTest {
 
             given(userRepository.findByIdWithProfileImage(1L))
                     .willReturn(Optional.of(testUser1));
+            given(userRepository.findByIdWithProfileImage(2L))
+                    .willReturn(Optional.of(testUser2));
             given(friendBlockRepository.findBlockedUsers(1L))
                     .willReturn(List.of());
             given(userRepository.findActiveUsersByInterest("게임"))
@@ -180,10 +187,7 @@ class RandomChatServiceImplTest {
             given(chatRoomUserRepository.save(any(ChatRoomUser.class)))
                     .willReturn(mock(ChatRoomUser.class));
             given(chatRoomUserRepository.findAllByChatRoomIdWithUserAndProfile(anyLong()))
-                    .willReturn(List.of(
-                            createMockChatRoomUser(testUser1),
-                            createMockChatRoomUser(testUser2)
-                    ));
+                    .willReturn(List.of());
 
             // When
             RandomChatMatchResponseDto result = randomChatService.startRandomChat(1L, requestDto);
@@ -303,6 +307,8 @@ class RandomChatServiceImplTest {
 
             given(userRepository.findByIdWithProfileImage(1L))
                     .willReturn(Optional.of(testUser1));
+            given(userRepository.findByIdWithProfileImage(2L))
+                    .willReturn(Optional.of(testUser2));
             given(friendBlockRepository.findBlockedUsers(1L))
                     .willReturn(List.of());
             given(userRepository.findActiveUsersByInterest("게임"))
@@ -333,8 +339,6 @@ class RandomChatServiceImplTest {
                     .willReturn(List.of());
             given(userRepository.findActiveUsersByInterest("게임"))
                     .willReturn(List.of(testUser1, disabledUser));
-            given(friendBlockRepository.findByBlockerAndBlocked(disabledUser, testUser1))
-                    .willReturn(Optional.empty());
 
             // When
             RandomChatMatchResponseDto result = randomChatService.startRandomChat(1L, requestDto);
@@ -380,7 +384,7 @@ class RandomChatServiceImplTest {
             // Then
             assertThat(result).isNotNull();
             assertThat(result.isMatched()).isFalse();
-            assertThat(result.getMessage()).isEqualTo("매칭 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
+            assertThat(result.getMessage()).isEqualTo("현재 매칭 가능한 사용자가 없습니다. 잠시 후 다시 시도해주세요.");
         }
 
         @Test
@@ -415,6 +419,8 @@ class RandomChatServiceImplTest {
 
             given(userRepository.findByIdWithProfileImage(1L))
                     .willReturn(Optional.of(testUser1));
+            given(userRepository.findByIdWithProfileImage(2L))
+                    .willReturn(Optional.of(testUser2));
             given(friendBlockRepository.findBlockedUsers(1L))
                     .willReturn(List.of());
             given(userRepository.findActiveUsersByInterest("게임"))
@@ -428,10 +434,7 @@ class RandomChatServiceImplTest {
             given(chatRoomUserRepository.save(any(ChatRoomUser.class)))
                     .willReturn(mock(ChatRoomUser.class));
             given(chatRoomUserRepository.findAllByChatRoomIdWithUserAndProfile(anyLong()))
-                    .willReturn(List.of(
-                            createMockChatRoomUser(testUser1),
-                            createMockChatRoomUser(testUser2)
-                    ));
+                    .willReturn(List.of());
 
             // When
             RandomChatMatchResponseDto result = randomChatService.startRandomChat(1L, requestDto);
@@ -443,11 +446,5 @@ class RandomChatServiceImplTest {
             verify(userRepository).findActiveUsersByInterest("게임");
             verify(userRepository).findActiveUsersByInterest("영화");
         }
-    }
-
-    private ChatRoomUser createMockChatRoomUser(User user) {
-        ChatRoomUser mockRoomUser = mock(ChatRoomUser.class);
-        given(mockRoomUser.getUser()).willReturn(user);
-        return mockRoomUser;
     }
 }

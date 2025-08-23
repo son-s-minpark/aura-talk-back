@@ -19,8 +19,75 @@ spring:
     console:
       enabled: true
 
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      timeout: 2000ms
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+
+  websocket:
+    allowed-origins: "*"
+    endpoint: "/ws"
+
+swagger:
+  servers:
+    local: http://localhost:8080
+    prodHttp: http://localhost:8080
+    prodHttps: https://localhost:8443
+
+jwt:
+  secret: testSecretKeyForJwtTokenGenerationAndValidationInTestEnvironmentOnly
+  access-token-expiry: 3600000  # 1시간 (밀리초)
+  refresh-token-expiry: 604800000  # 7일 (밀리초)
+
+cloud:
+  aws:
+    region:
+      static: us-east-1
+    s3:
+      bucket: test-auratalk-bucket
+    credentials:
+      access-key: test-access-key
+      secret-key: test-secret-key
+
+file:
+  upload:
+    max-size: 100MB
+
 logging:
   level:
     org.hibernate.SQL: DEBUG
     org.hibernate.type.descriptor.sql.BasicBinder: TRACE
     org.springframework.orm.jpa: DEBUG
+    com.sonsminpark.auratalkback: DEBUG
+
+app:
+  name: AuraTalk
+  version: 1.0.0-TEST
+  frontend-url: http://localhost:3000
+
+spring.mail:
+  host: smtp.gmail.com
+  port: 587
+  username: test@example.com
+  password: test-password
+  properties:
+    mail:
+      smtp:
+        auth: true
+        starttls:
+          enable: true
+
+cors:
+  allowed-origins: "*"
+  allowed-methods: "*"
+  allowed-headers: "*"
+
+default-images:
+  user-profile-count: 10
+  group-chat-count: 2

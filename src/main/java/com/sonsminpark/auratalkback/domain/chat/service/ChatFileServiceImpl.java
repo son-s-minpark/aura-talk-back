@@ -181,6 +181,43 @@ public class ChatFileServiceImpl implements ChatFileService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public Page<ChatFileResponseDto> getChatRoomFilesByType(Long chatroomId, Long userId, ChatFileType fileType, int page, int size) {
+        validateChatRoomAccess(chatroomId, userId);
+
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        Page<ChatFile> chatFiles;
+
+        switch (fileType) {
+            case IMAGE:
+                chatFiles = chatFileRepository.findImagesByChatRoomIdWithUploader(chatroomId, pageable);
+                break;
+            case VIDEO:
+                chatFiles = chatFileRepository.findVideosByChatRoomIdWithUploader(chatroomId, pageable);
+                break;
+            case AUDIO:
+                chatFiles = chatFileRepository.findAudiosByChatRoomIdWithUploader(chatroomId, pageable);
+                break;
+            case DOCUMENT:
+                chatFiles = chatFileRepository.findDocumentsByChatRoomIdWithUploader(chatroomId, pageable);
+                break;
+            case OTHER:
+                chatFiles = chatFileRepository.findOthersByChatRoomIdWithUploader(chatroomId, pageable);
+                break;
+            case ALL:
+            default:
+                chatFiles = chatFileRepository.findByChatRoomIdWithUploader(chatroomId, pageable);
+                break;
+        }
+
+        return chatFiles.map(chatFile -> {
+            String uploaderThumbnailUrl = chatFile.getUploader().getUserProfileImage() != null ?
+                    chatFile.getUploader().getUserProfileImage().getThumbnailImageUrl() : null;
+            return ChatFileResponseDto.from(chatFile, uploaderThumbnailUrl);
+        });
+    }
+
+    @Override
     @Transactional
     public void deleteFile(Long fileId, Long userId) {
         ChatFile chatFile = chatFileRepository.findByIdAndUploaderIdAndIsDeletedFalse(fileId, userId)

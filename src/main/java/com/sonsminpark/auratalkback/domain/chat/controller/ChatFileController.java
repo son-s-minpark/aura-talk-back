@@ -3,23 +3,25 @@ package com.sonsminpark.auratalkback.domain.chat.controller;
 import com.sonsminpark.auratalkback.domain.chat.dto.request.ChatFileUploadRequestDto;
 import com.sonsminpark.auratalkback.domain.chat.dto.response.ChatFileDownloadResponseDto;
 import com.sonsminpark.auratalkback.domain.chat.dto.response.ChatFileResponseDto;
+import com.sonsminpark.auratalkback.domain.chat.entity.ChatFileType;
 import com.sonsminpark.auratalkback.domain.chat.service.ChatFileService;
 import com.sonsminpark.auratalkback.global.common.ApiResponse;
+import com.sonsminpark.auratalkback.global.exception.ErrorCode;
 import com.sonsminpark.auratalkback.global.jwt.JwtTokenProvider;
 import com.sonsminpark.auratalkback.global.s3.S3Service;
 import com.sonsminpark.auratalkback.global.s3.UploadType;
 import com.sonsminpark.auratalkback.global.s3.dto.request.PresignedUploadRequestDto;
 import com.sonsminpark.auratalkback.global.s3.dto.response.PresignedUploadResponseDto;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @Slf4j
 @RestController
@@ -92,16 +94,52 @@ public class ChatFileController {
             description = "채팅방에 업로드된 파일 목록을 조회합니다.",
             security = {@SecurityRequirement(name = "bearerAuth")}
     )
-    public ResponseEntity<ApiResponse<List<ChatFileResponseDto>>> getChatRoomFiles(
+    public ResponseEntity<ApiResponse<Page<ChatFileResponseDto>>> getChatRoomFiles(
             @RequestHeader("Authorization") String authHeader,
             @PathVariable Long chatroomId,
+            @Parameter(description = "페이지 번호 (0부터 시작)", example = "0")
             @RequestParam(defaultValue = "0") int page,
+            @Parameter(description = "페이지 크기", example = "20")
             @RequestParam(defaultValue = "20") int size) {
 
         Long userId = extractUserIdFromToken(authHeader);
-        List<ChatFileResponseDto> files = chatFileService.getChatRoomFiles(chatroomId, userId, page, size);
+        Page<ChatFileResponseDto> files = chatFileService.getChatRoomFiles(chatroomId, userId, page, size);
 
         return ResponseEntity.ok(ApiResponse.success("파일 목록을 성공적으로 조회했습니다.", files));
+    }
+
+    @GetMapping("/{chatroomId}/files/by-type")
+    @Operation(
+            summary = "채팅방 파일 타입별 조회",
+            description = "채팅방에 업로드된 파일을 타입별로 분류하여 조회합니다. (IMAGE, VIDEO, AUDIO, DOCUMENT, OTHER)",
+            security = {@SecurityRequirement(name = "bearerAuth")}
+    )
+    public ResponseEntity<ApiResponse<Page<ChatFileResponseDto>>> getChatRoomFilesByType(
+            @RequestHeader("Authorization") String authHeader,
+            @PathVariable Long chatroomId,
+            @Parameter(description = "파일 타입", required = true,
+                    example = "IMAGE",
+                    schema = @io.swagger.v3.oas.annotations.media.Schema(
+                            allowableValues = {"IMAGE", "VIDEO", "AUDIO", "DOCUMENT", "OTHER"}))
+            @RequestParam String fileType,
+            @Parameter(description = "페이지 번호 (0부터 시작)", example = "0")
+            @RequestParam(defaultValue = "0") int page,
+            @Parameter(description = "페이지 크기", example = "20")
+            @RequestParam(defaultValue = "20") int size) {
+
+        Long userId = extractUserIdFromToken(authHeader);
+
+        try {
+            ChatFileType type = ChatFileType.valueOf(fileType.toUpperCase());
+            Page<ChatFileResponseDto> files = chatFileService.getChatRoomFilesByType(chatroomId, userId, type, page, size);
+
+            return ResponseEntity.ok(ApiResponse.success(
+                    type.getDescription() + " 파일 목록을 성공적으로 조회했습니다.", files));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error(ErrorCode.INVALID_INPUT_VALUE,
+                            "올바르지 않은 파일 타입입니다. 사용 가능한 타입: IMAGE, VIDEO, AUDIO, DOCUMENT, OTHER"));
+        }
     }
 
     @DeleteMapping("/files/{fileId}")

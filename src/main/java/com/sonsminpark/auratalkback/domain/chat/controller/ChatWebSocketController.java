@@ -31,7 +31,7 @@ public class ChatWebSocketController {
             ChatMessageRequestDto message,
             Principal principal) {
 
-        log.debug("WebSocket 메시지 수신 - 채팅방: {}", chatroomId);
+        log.info("WebSocket 메시지 수신 - 채팅방: {}, 메시지: {}, 타입: {}", chatroomId, message.getContent(), message.getType());
 
         if (!(principal instanceof WebSocketUser webSocketUser)) {
             log.error("유효하지 않은 Principal 타입: {}", principal != null ? principal.getClass() : "null");
@@ -39,11 +39,11 @@ public class ChatWebSocketController {
         }
 
         Long userId = webSocketUser.getUserId();
-        log.debug("WebSocket 메시지 처리 - 사용자: {}, 채팅방: {}", userId, chatroomId);
+        log.info("WebSocket 메시지 처리 시작 - 사용자: {}, 채팅방: {}", userId, chatroomId);
 
         try {
             ChatMessageResponseDto response = chatService.sendMessage(chatroomId, message, userId);
-            log.debug("WebSocket 메시지 전송 완료 - 메시지 ID: {}", response.getId());
+            log.info("WebSocket 메시지 처리 완료 - 메시지 ID: {}, 브로드캐스팅 준비", response.getId());
             return response;
         } catch (Exception e) {
             log.error("WebSocket 메시지 전송 실패 - 사용자: {}, 채팅방: {}, 오류: {}",

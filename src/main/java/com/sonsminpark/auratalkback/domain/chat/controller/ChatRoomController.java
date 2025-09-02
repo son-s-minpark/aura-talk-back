@@ -25,6 +25,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -129,15 +130,21 @@ public class ChatRoomController {
             description = "현재 사용자가 참여중인 채팅방 목록을 조회합니다.",
             security = {@SecurityRequirement(name = "bearerAuth")}
     )
-    public ResponseEntity<ApiResponse<List<ChatRoomResponseDto>>> getChatRooms(
-            @RequestHeader("Authorization") String authHeader) {
+    public ResponseEntity<ApiResponse<Page<ChatRoomResponseDto>>> getChatRooms(
+            @RequestHeader("Authorization") String authHeader,
+            @Parameter(description = "페이지 번호 (0부터 시작)", example = "0")
+            @RequestParam(defaultValue = "0") int page,
+            @Parameter(description = "페이지 크기", example = "20")
+            @RequestParam(defaultValue = "20") int size) {
 
         Long userId = extractUserIdFromToken(authHeader);
-        log.debug("채팅방 목록 조회 요청 - 사용자: {}", userId);
+        log.debug("채팅방 목록 조회 요청 - 사용자: {}, 페이지: {}, 크기: {}", userId, page, size);
 
-        List<ChatRoomResponseDto> chatRooms = chatService.getChatRoomsByUserId(userId);
+        Page<ChatRoomResponseDto> chatRooms = chatService.getChatRoomsByUserId(userId, page, size);
 
-        log.debug("채팅방 목록 조회 완료 - 사용자: {}, 채팅방 수: {}", userId, chatRooms.size());
+        log.debug("채팅방 목록 조회 완료 - 사용자: {}, 총 개수: {}, 현재 페이지: {}, 총 페이지: {}",
+                userId, chatRooms.getTotalElements(), chatRooms.getNumber(), chatRooms.getTotalPages());
+
         return ResponseEntity.ok(ApiResponse.success("채팅방 목록을 성공적으로 조회했습니다.", chatRooms));
     }
 
@@ -263,7 +270,7 @@ public class ChatRoomController {
         log.info("초대 링크 생성 완료 - 채팅방: {}, 만료시간: {}", chatroomId, responseDto.getExpiresAt());
         return ResponseEntity.ok(ApiResponse.success("초대 링크가 생성되었습니다.", responseDto));
     }
-    
+
     @PostMapping("/join")
     @Operation(
             summary = "초대 링크로 채팅방 참여",

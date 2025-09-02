@@ -3,11 +3,7 @@ package com.sonsminpark.auratalkback.domain.chat.service;
 import com.sonsminpark.auratalkback.domain.chat.dto.request.ChatFileUploadRequestDto;
 import com.sonsminpark.auratalkback.domain.chat.dto.response.ChatFileDownloadResponseDto;
 import com.sonsminpark.auratalkback.domain.chat.dto.response.ChatFileResponseDto;
-import com.sonsminpark.auratalkback.domain.chat.entity.ChatFile;
-import com.sonsminpark.auratalkback.domain.chat.entity.ChatMessage;
-import com.sonsminpark.auratalkback.domain.chat.entity.ChatRoom;
-import com.sonsminpark.auratalkback.domain.chat.entity.ChatRoomUser;
-import com.sonsminpark.auratalkback.domain.chat.entity.MessageType;
+import com.sonsminpark.auratalkback.domain.chat.entity.*;
 import com.sonsminpark.auratalkback.domain.chat.exception.*;
 import com.sonsminpark.auratalkback.domain.chat.repository.ChatFileRepository;
 import com.sonsminpark.auratalkback.domain.chat.repository.ChatMessageRepository;
@@ -170,20 +166,55 @@ public class ChatFileServiceImpl implements ChatFileService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<ChatFileResponseDto> getChatRoomFiles(Long chatroomId, Long userId, int page, int size) {
+    public Page<ChatFileResponseDto> getChatRoomFiles(Long chatroomId, Long userId, int page, int size) {
         validateChatRoomAccess(chatroomId, userId);
 
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
 
         Page<ChatFile> chatFiles = chatFileRepository.findByChatRoomIdWithUploader(chatroomId, pageable);
 
-        return chatFiles.stream()
-                .map(chatFile -> {
-                    String uploaderThumbnailUrl = chatFile.getUploader().getUserProfileImage() != null ?
-                            chatFile.getUploader().getUserProfileImage().getThumbnailImageUrl() : null;
-                    return ChatFileResponseDto.from(chatFile, uploaderThumbnailUrl);
-                })
-                .toList();
+        return chatFiles.map(chatFile -> {
+            String uploaderThumbnailUrl = chatFile.getUploader().getUserProfileImage() != null ?
+                    chatFile.getUploader().getUserProfileImage().getThumbnailImageUrl() : null;
+            return ChatFileResponseDto.from(chatFile, uploaderThumbnailUrl);
+        });
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<ChatFileResponseDto> getChatRoomFilesByType(Long chatroomId, Long userId, ChatFileType fileType, int page, int size) {
+        validateChatRoomAccess(chatroomId, userId);
+
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        Page<ChatFile> chatFiles;
+
+        switch (fileType) {
+            case IMAGE:
+                chatFiles = chatFileRepository.findImagesByChatRoomIdWithUploader(chatroomId, pageable);
+                break;
+            case VIDEO:
+                chatFiles = chatFileRepository.findVideosByChatRoomIdWithUploader(chatroomId, pageable);
+                break;
+            case AUDIO:
+                chatFiles = chatFileRepository.findAudiosByChatRoomIdWithUploader(chatroomId, pageable);
+                break;
+            case DOCUMENT:
+                chatFiles = chatFileRepository.findDocumentsByChatRoomIdWithUploader(chatroomId, pageable);
+                break;
+            case OTHER:
+                chatFiles = chatFileRepository.findOthersByChatRoomIdWithUploader(chatroomId, pageable);
+                break;
+            case ALL:
+            default:
+                chatFiles = chatFileRepository.findByChatRoomIdWithUploader(chatroomId, pageable);
+                break;
+        }
+
+        return chatFiles.map(chatFile -> {
+            String uploaderThumbnailUrl = chatFile.getUploader().getUserProfileImage() != null ?
+                    chatFile.getUploader().getUserProfileImage().getThumbnailImageUrl() : null;
+            return ChatFileResponseDto.from(chatFile, uploaderThumbnailUrl);
+        });
     }
 
     @Override

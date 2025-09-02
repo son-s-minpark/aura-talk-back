@@ -34,6 +34,47 @@ public interface ChatFileRepository extends JpaRepository<ChatFile, Long> {
     Optional<ChatFile> findByIdAndIsDeletedFalse(@Param("fileId") Long fileId);
 
     @Query("SELECT cf FROM ChatFile cf " +
+            "JOIN FETCH cf.uploader u " +
+            "LEFT JOIN FETCH u.userProfileImage " +
+            "WHERE cf.chatRoom.id = :chatroomId AND cf.mimeType LIKE 'image/%' AND cf.isDeleted = false " +
+            "ORDER BY cf.createdAt DESC")
+    Page<ChatFile> findImagesByChatRoomIdWithUploader(@Param("chatroomId") Long chatroomId, Pageable pageable);
+
+    @Query("SELECT cf FROM ChatFile cf " +
+            "JOIN FETCH cf.uploader u " +
+            "LEFT JOIN FETCH u.userProfileImage " +
+            "WHERE cf.chatRoom.id = :chatroomId AND cf.mimeType LIKE 'video/%' AND cf.isDeleted = false " +
+            "ORDER BY cf.createdAt DESC")
+    Page<ChatFile> findVideosByChatRoomIdWithUploader(@Param("chatroomId") Long chatroomId, Pageable pageable);
+
+    @Query("SELECT cf FROM ChatFile cf " +
+            "JOIN FETCH cf.uploader u " +
+            "LEFT JOIN FETCH u.userProfileImage " +
+            "WHERE cf.chatRoom.id = :chatroomId AND cf.mimeType LIKE 'audio/%' AND cf.isDeleted = false " +
+            "ORDER BY cf.createdAt DESC")
+    Page<ChatFile> findAudiosByChatRoomIdWithUploader(@Param("chatroomId") Long chatroomId, Pageable pageable);
+
+    @Query("SELECT cf FROM ChatFile cf " +
+            "JOIN FETCH cf.uploader u " +
+            "LEFT JOIN FETCH u.userProfileImage " +
+            "WHERE cf.chatRoom.id = :chatroomId AND cf.isDeleted = false " +
+            "AND (cf.mimeType LIKE 'application/%' OR cf.mimeType LIKE 'text/%') " +
+            "ORDER BY cf.createdAt DESC")
+    Page<ChatFile> findDocumentsByChatRoomIdWithUploader(@Param("chatroomId") Long chatroomId, Pageable pageable);
+
+    @Query("SELECT cf FROM ChatFile cf " +
+            "JOIN FETCH cf.uploader u " +
+            "LEFT JOIN FETCH u.userProfileImage " +
+            "WHERE cf.chatRoom.id = :chatroomId AND cf.isDeleted = false " +
+            "AND cf.mimeType NOT LIKE 'image/%' " +
+            "AND cf.mimeType NOT LIKE 'video/%' " +
+            "AND cf.mimeType NOT LIKE 'audio/%' " +
+            "AND cf.mimeType NOT LIKE 'application/%' " +
+            "AND cf.mimeType NOT LIKE 'text/%' " +
+            "ORDER BY cf.createdAt DESC")
+    Page<ChatFile> findOthersByChatRoomIdWithUploader(@Param("chatroomId") Long chatroomId, Pageable pageable);
+
+    @Query("SELECT cf FROM ChatFile cf " +
             "WHERE cf.chatRoom.id = :chatroomId AND cf.mimeType LIKE 'image/%' AND cf.isDeleted = false " +
             "ORDER BY cf.createdAt DESC")
     List<ChatFile> findImagesByChatRoomId(@Param("chatroomId") Long chatroomId);

@@ -427,9 +427,15 @@ public class ChatServiceImpl implements ChatService {
     @Override
     @Transactional(readOnly = true)
     public Page<ChatMessageResponseDto> getMessages(Long chatRoomId, Long userId, Pageable pageable) {
+        log.debug("메시지 조회 요청 - 채팅방: {}, 사용자: {}, 페이지: {}, 크기: {}",
+                chatRoomId, userId, pageable.getPageNumber(), pageable.getPageSize());
+
         validateChatRoomAccess(chatRoomId, userId);
 
         Page<ChatMessage> messages = chatMessageRepository.findByChatRoomIdWithSender(chatRoomId, pageable);
+
+        log.debug("메시지 조회 결과 - 채팅방: {}, 조회된 메시지: {}, 총 메시지: {}, 총 페이지: {}",
+                chatRoomId, messages.getNumberOfElements(), messages.getTotalElements(), messages.getTotalPages());
 
         return messages.map(message -> {
             String senderThumbnailUrl = null;
@@ -582,11 +588,8 @@ public class ChatServiceImpl implements ChatService {
     }
 
     private ChatRoomUser findChatRoomUser(Long chatRoomId, Long userId) {
-        List<ChatRoomUser> users = chatRoomUserRepository.findByChatRoomIdAndUserId(chatRoomId, userId);
-        if (users.isEmpty()) {
-            throw InvalidChatRoomStateException.notMember();
-        }
-        return users.get(0);
+        return chatRoomUserRepository.findFirstByChatRoomIdAndUserId(chatRoomId, userId)
+                .orElseThrow(() -> InvalidChatRoomStateException.notMember());
     }
 
     private void validateUserExists(Long userId) {
@@ -604,11 +607,15 @@ public class ChatServiceImpl implements ChatService {
     private void validateChatRoomAccess(Long chatRoomId, Long userId) {
         ChatRoom chatRoom = findChatRoomById(chatRoomId);
 
+        if (!chatRoom.isActive()) {
+            throw InvalidChatRoomStateException.deactivated();
+        }
+
         if (chatRoom.isBannedUser(userId)) {
             throw ChatRoomBannedException.of();
         }
 
-        if (!isUserInChatRoom(chatRoomId, userId)) {
+        if (!chatRoomUserRepository.existsByChatRoomIdAndUserId(chatRoomId, userId)) {
             throw ChatAccessDeniedException.of("채팅방에 참여할 권한이 없습니다.");
         }
     }
@@ -620,9 +627,7 @@ public class ChatServiceImpl implements ChatService {
     }
 
     private boolean isUserInChatRoom(Long chatRoomId, Long userId) {
-        // findUserSettings 대신 findByChatRoomIdAndUserId 사용으로 중복 데이터 문제 해결
-        List<ChatRoomUser> users = chatRoomUserRepository.findByChatRoomIdAndUserId(chatRoomId, userId);
-        return !users.isEmpty();
+        return chatRoomUserRepository.existsByChatRoomIdAndUserId(chatRoomId, userId);
     }
 
     private void addUserToChatRoom(ChatRoom chatRoom, User user) {

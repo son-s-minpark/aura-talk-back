@@ -64,9 +64,7 @@ public class ChatFileServiceImpl implements ChatFileService {
             throw ChatAccessDeniedException.of("강퇴된 채팅방에는 파일을 업로드할 수 없습니다.");
         }
 
-        // 중복 데이터 문제 해결
-        List<ChatRoomUser> users = chatRoomUserRepository.findByChatRoomIdAndUserId(chatroomId, userId);
-        if (users.isEmpty()) {
+        if (!chatRoomUserRepository.existsByChatRoomIdAndUserId(chatroomId, userId)) {
             throw ChatAccessDeniedException.of("채팅방에 참여하고 있지 않습니다.");
         }
     }

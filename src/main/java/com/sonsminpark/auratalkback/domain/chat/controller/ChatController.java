@@ -1,7 +1,6 @@
 package com.sonsminpark.auratalkback.domain.chat.controller;
 
-import com.sonsminpark.auratalkback.domain.chat.dto.request.ChatMessageRequestDto;
-import com.sonsminpark.auratalkback.domain.chat.dto.response.ChatMessageResponseDto;
+import com.sonsminpark.auratalkback.domain.chat.dto.response.ChatMessagesResponseDto;
 import com.sonsminpark.auratalkback.domain.chat.service.ChatService;
 import com.sonsminpark.auratalkback.global.common.ApiResponse;
 import com.sonsminpark.auratalkback.global.jwt.JwtTokenProvider;
@@ -9,14 +8,8 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -32,49 +25,55 @@ public class ChatController {
 
     @GetMapping("/{chatroomId}")
     @Operation(
-            summary = "채팅 목록 조회",
-            description = "채팅방의 메시지 목록을 조회합니다. 최신 메시지부터 내림차순으로 정렬됩니다.",
+            summary = "채팅 메시지 조회",
+            description = "채팅방의 메시지 목록을 무한 스크롤 방식으로 조회합니다. " +
+                    "beforeMessageId가 없으면 최신 메시지부터, 있으면 해당 메시지 이전의 메시지들을 반환합니다.",
             security = {@SecurityRequirement(name = "bearerAuth")}
     )
-    public ResponseEntity<ApiResponse<Page<ChatMessageResponseDto>>> getMessages(
+    public ResponseEntity<ApiResponse<ChatMessagesResponseDto>> getMessages(
             @RequestHeader("Authorization") String authHeader,
             @PathVariable Long chatroomId,
-            @Parameter(description = "페이지 번호 (0부터 시작)", example = "0")
-            @RequestParam(defaultValue = "0") int page,
-            @Parameter(description = "페이지 크기 (최대 100)", example = "50")
-            @RequestParam(defaultValue = "50") int size) {
+            @Parameter(description = "이전 메시지 로드용 기준 메시지 ID (없으면 최신 메시지부터)")
+            @RequestParam(required = false) Long beforeMessageId,
+            @Parameter(description = "새 메시지 로드용 기준 메시지 ID")
+            @RequestParam(required = false) Long afterMessageId,
+            @Parameter(description = "메시지 개수 (최대 100)", example = "50")
+            @RequestParam(defaultValue = "50") int limit) {
 
         String token = authHeader.substring(7);
         Long userId = jwtTokenProvider.getUserIdFromToken(token);
 
-        if (size > 100) {
-            size = 100;
-            log.debug("페이지 크기를 최대값 100으로 조정 - 사용자: {}, 채팅방: {}", userId, chatroomId);
+        if (limit > 100) {
+            limit = 100;
+            log.debug("메시지 개수를 최대값 100으로 조정 - 사용자: {}, 채팅방: {}", userId, chatroomId);
         }
-        if (size < 1) {
-            size = 1;
+        if (limit < 1) {
+            limit = 1;
         }
-        if (page < 0) {
-            page = 0;
-        }
-
-        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
 
         try {
-            log.debug("채팅 메시지 조회 시작 - 채팅방: {}, 사용자: {}, 페이지: {}, 크기: {}",
-                    chatroomId, userId, page, size);
+            ChatMessagesResponseDto messages;
 
-            Page<ChatMessageResponseDto> messages = chatService.getMessages(chatroomId, userId, pageable);
+            if (afterMessageId != null) {
+                // 새로운 메시지 로드
+                log.debug("새 메시지 조회 시작 - 채팅방: {}, 사용자: {}, afterMessageId: {}, limit: {}",
+                        chatroomId, userId, afterMessageId, limit);
+                messages = chatService.getMessagesAfter(chatroomId, userId, afterMessageId, limit);
+            } else {
+                // 이전 메시지 로드 또는 최신 메시지 로드
+                log.debug("이전 메시지 조회 시작 - 채팅방: {}, 사용자: {}, beforeMessageId: {}, limit: {}",
+                        chatroomId, userId, beforeMessageId, limit);
+                messages = chatService.getMessagesBefore(chatroomId, userId, beforeMessageId, limit);
+            }
 
-            log.debug("채팅 메시지 조회 완료 - 채팅방: {}, 사용자: {}, 페이지: {}/{}, 조회된 메시지: {}, 총 메시지: {}",
-                    chatroomId, userId, page + 1, messages.getTotalPages(),
-                    messages.getNumberOfElements(), messages.getTotalElements());
+            log.debug("메시지 조회 완료 - 채팅방: {}, 사용자: {}, 조회된 메시지: {}, hasMore: {}",
+                    chatroomId, userId, messages.getMessages().size(), messages.isHasMore());
 
-            return ResponseEntity.ok(ApiResponse.success("채팅 목록 조회 성공", messages));
+            return ResponseEntity.ok(ApiResponse.success("채팅 메시지 조회 성공", messages));
 
         } catch (Exception e) {
-            log.error("채팅 메시지 조회 실패 - 채팅방: {}, 사용자: {}, 페이지: {}, 오류: {}",
-                    chatroomId, userId, page, e.getMessage(), e);
+            log.error("채팅 메시지 조회 실패 - 채팅방: {}, 사용자: {}, 오류: {}",
+                    chatroomId, userId, e.getMessage(), e);
             throw e;
         }
     }

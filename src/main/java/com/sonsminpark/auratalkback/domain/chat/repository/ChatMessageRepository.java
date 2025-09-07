@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -18,6 +19,41 @@ public interface ChatMessageRepository extends JpaRepository<ChatMessage, Long> 
             "LEFT JOIN FETCH s.userProfileImage " +
             "WHERE cm.chatRoom.id = :chatRoomId AND cm.isDeleted = false")
     Page<ChatMessage> findByChatRoomIdWithSender(@Param("chatRoomId") Long chatRoomId, Pageable pageable);
+
+    @Query("SELECT cm FROM ChatMessage cm " +
+            "LEFT JOIN FETCH cm.sender s " +
+            "LEFT JOIN FETCH s.userProfileImage " +
+            "WHERE cm.chatRoom.id = :chatRoomId AND cm.isDeleted = false " +
+            "ORDER BY cm.createdAt DESC, cm.id DESC")
+    List<ChatMessage> findLatestMessages(@Param("chatRoomId") Long chatRoomId, Pageable pageable);
+
+    @Query("SELECT cm FROM ChatMessage cm " +
+            "LEFT JOIN FETCH cm.sender s " +
+            "LEFT JOIN FETCH s.userProfileImage " +
+            "WHERE cm.chatRoom.id = :chatRoomId AND cm.id < :beforeMessageId AND cm.isDeleted = false " +
+            "ORDER BY cm.createdAt DESC, cm.id DESC")
+    List<ChatMessage> findMessagesBefore(
+            @Param("chatRoomId") Long chatRoomId,
+            @Param("beforeMessageId") Long beforeMessageId,
+            Pageable pageable);
+
+    @Query("SELECT cm FROM ChatMessage cm " +
+            "LEFT JOIN FETCH cm.sender s " +
+            "LEFT JOIN FETCH s.userProfileImage " +
+            "WHERE cm.chatRoom.id = :chatRoomId AND cm.id > :afterMessageId AND cm.isDeleted = false " +
+            "ORDER BY cm.createdAt ASC, cm.id ASC")
+    List<ChatMessage> findMessagesAfter(
+            @Param("chatRoomId") Long chatRoomId,
+            @Param("afterMessageId") Long afterMessageId,
+            Pageable pageable);
+
+    @Query("SELECT COUNT(cm) > 0 FROM ChatMessage cm " +
+            "WHERE cm.chatRoom.id = :chatRoomId AND cm.id < :beforeMessageId AND cm.isDeleted = false")
+    boolean existsMessagesBefore(@Param("chatRoomId") Long chatRoomId, @Param("beforeMessageId") Long beforeMessageId);
+
+    @Query("SELECT COUNT(cm) > 0 FROM ChatMessage cm " +
+            "WHERE cm.chatRoom.id = :chatRoomId AND cm.id > :afterMessageId AND cm.isDeleted = false")
+    boolean existsMessagesAfter(@Param("chatRoomId") Long chatRoomId, @Param("afterMessageId") Long afterMessageId);
 
     @Query("SELECT cm FROM ChatMessage cm WHERE cm.id = :messageId AND cm.sender.id = :senderId AND cm.isDeleted = false")
     Optional<ChatMessage> findByIdAndSenderId(@Param("messageId") Long messageId, @Param("senderId") Long senderId);

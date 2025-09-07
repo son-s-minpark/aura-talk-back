@@ -240,7 +240,6 @@ public class ChatServiceImpl implements ChatService {
 
         if (requestDto.getName() != null && !requestDto.getName().trim().isEmpty()) {
             chatRoom.updateName(requestDto.getName().trim());
-//            sendSystemMessage(chatRoom, "채팅방 이름이 '" + requestDto.getName() + "'로 변경되었습니다.");
         }
 
         if (requestDto.getRoomImageUrl() != null) {
@@ -249,7 +248,6 @@ public class ChatServiceImpl implements ChatService {
             } else {
                 chatRoom.updateRoomImage(requestDto.getRoomImageUrl());
             }
-//            sendSystemMessage(chatRoom, "채팅방 이미지가 변경되었습니다.");
         }
 
         log.info("채팅방 정보 수정 완료 - ID: {}, 수정자: {}", chatRoomId, userId);
@@ -274,9 +272,6 @@ public class ChatServiceImpl implements ChatService {
 
         // 채팅방의 이미지 URL들을 기본 이미지로 업데이트
         chatRoom.updateRoomImage(defaultImageDto.getOriginalImageUrl(), defaultImageDto.getThumbnailImageUrl());
-
-        // 시스템 메시지 전송
-//        sendSystemMessage(chatRoom, "채팅방 이미지가 기본 이미지로 변경되었습니다.");
 
         log.info("채팅방 이미지 삭제 완료 - ID: {}, 수정자: {}", chatRoomId, userId);
         return buildChatRoomResponse(chatRoom, userId);
@@ -358,7 +353,6 @@ public class ChatServiceImpl implements ChatService {
         }
 
         chatRoom.unbanUser(targetUser);
-//        sendSystemMessage(chatRoom, targetUser.getNickname() + "님의 강퇴가 해제되었습니다.");
 
         log.info("사용자 {}의 채팅방 {} 강퇴가 해제되었습니다.", targetUserId, chatRoomId);
     }
@@ -426,16 +420,102 @@ public class ChatServiceImpl implements ChatService {
 
     @Override
     @Transactional(readOnly = true)
-    public Page<ChatMessageResponseDto> getMessages(Long chatRoomId, Long userId, Pageable pageable) {
-        log.debug("메시지 조회 요청 - 채팅방: {}, 사용자: {}, 페이지: {}, 크기: {}",
-                chatRoomId, userId, pageable.getPageNumber(), pageable.getPageSize());
+    public ChatMessagesResponseDto getMessagesBefore(Long chatRoomId, Long userId, Long beforeMessageId, int limit) {
+        log.debug("이전 메시지 조회 - 채팅방: {}, 사용자: {}, beforeMessageId: {}, limit: {}",
+                chatRoomId, userId, beforeMessageId, limit);
 
         validateChatRoomAccess(chatRoomId, userId);
 
-        Page<ChatMessage> messages = chatMessageRepository.findByChatRoomIdWithSender(chatRoomId, pageable);
+        Pageable pageable = PageRequest.of(0, limit + 1); // 더 많은 데이터 있는지 확인
+        List<ChatMessage> messages;
 
-        log.debug("메시지 조회 결과 - 채팅방: {}, 조회된 메시지: {}, 총 메시지: {}, 총 페이지: {}",
-                chatRoomId, messages.getNumberOfElements(), messages.getTotalElements(), messages.getTotalPages());
+        if (beforeMessageId == null) {
+            // 최신 메시지들 가져오기
+            messages = chatMessageRepository.findLatestMessages(chatRoomId, pageable);
+            log.debug("최신 메시지 조회 - 채팅방: {}, 조회된 개수: {}", chatRoomId, messages.size());
+        } else {
+            // 특정 메시지 이전의 메시지들 가져오기
+            messages = chatMessageRepository.findMessagesBefore(chatRoomId, beforeMessageId, pageable);
+            log.debug("이전 메시지 조회 - 채팅방: {}, beforeMessageId: {}, 조회된 개수: {}",
+                    chatRoomId, beforeMessageId, messages.size());
+        }
+
+        boolean hasMore = messages.size() > limit;
+        if (hasMore) {
+            messages = messages.subList(0, limit);
+        }
+
+        List<ChatMessageResponseDto> responseDtos = messages.stream()
+                .map(this::convertToResponseDto)
+                .toList();
+
+        long totalMessageCount = chatMessageRepository.countByChatRoomIdAndIsDeletedFalse(chatRoomId);
+
+        ChatMessagesResponseDto result = ChatMessagesResponseDto.builder()
+                .messages(responseDtos)
+                .hasMore(hasMore)
+                .firstMessageId(responseDtos.isEmpty() ? null : responseDtos.get(0).getId())
+                .lastMessageId(responseDtos.isEmpty() ? null : responseDtos.get(responseDtos.size() - 1).getId())
+                .messageCount(responseDtos.size())
+                .totalMessageCount(totalMessageCount)
+                .build();
+
+        log.debug("이전 메시지 조회 완료 - 채팅방: {}, 반환 메시지: {}, hasMore: {}",
+                chatRoomId, result.getMessageCount(), result.isHasMore());
+
+        return result;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public ChatMessagesResponseDto getMessagesAfter(Long chatRoomId, Long userId, Long afterMessageId, int limit) {
+        log.debug("새 메시지 조회 - 채팅방: {}, 사용자: {}, afterMessageId: {}, limit: {}",
+                chatRoomId, userId, afterMessageId, limit);
+
+        validateChatRoomAccess(chatRoomId, userId);
+
+        Pageable pageable = PageRequest.of(0, limit + 1); // +1로 더 많은 데이터 있는지 확인
+        List<ChatMessage> messages = chatMessageRepository.findMessagesAfter(chatRoomId, afterMessageId, pageable);
+
+        boolean hasMore = messages.size() > limit;
+        if (hasMore) {
+            messages = messages.subList(0, limit);
+        }
+
+        // 최신순으로 뒤집기
+        messages = messages.stream()
+                .sorted((m1, m2) -> m2.getCreatedAt().compareTo(m1.getCreatedAt()))
+                .toList();
+
+        List<ChatMessageResponseDto> responseDtos = messages.stream()
+                .map(this::convertToResponseDto)
+                .toList();
+
+        long totalMessageCount = chatMessageRepository.countByChatRoomIdAndIsDeletedFalse(chatRoomId);
+
+        ChatMessagesResponseDto result = ChatMessagesResponseDto.builder()
+                .messages(responseDtos)
+                .hasMore(hasMore)
+                .firstMessageId(responseDtos.isEmpty() ? null : responseDtos.get(0).getId())
+                .lastMessageId(responseDtos.isEmpty() ? null : responseDtos.get(responseDtos.size() - 1).getId())
+                .messageCount(responseDtos.size())
+                .totalMessageCount(totalMessageCount)
+                .build();
+
+        log.debug("새 메시지 조회 완료 - 채팅방: {}, 반환 메시지: {}, hasMore: {}",
+                chatRoomId, result.getMessageCount(), result.isHasMore());
+
+        return result;
+    }
+
+    @Override
+    @Deprecated
+    @Transactional(readOnly = true)
+    public Page<ChatMessageResponseDto> getMessages(Long chatRoomId, Long userId, Pageable pageable) {
+        log.warn("Deprecated getMessages 메서드 사용 - 채팅방: {}, 사용자: {}", chatRoomId, userId);
+
+        validateChatRoomAccess(chatRoomId, userId);
+        Page<ChatMessage> messages = chatMessageRepository.findByChatRoomIdWithSender(chatRoomId, pageable);
 
         return messages.map(message -> {
             String senderThumbnailUrl = null;
@@ -639,6 +719,14 @@ public class ChatServiceImpl implements ChatService {
         chatRoomUserRepository.save(roomUser);
     }
 
+    private ChatMessageResponseDto convertToResponseDto(ChatMessage message) {
+        String senderThumbnailUrl = null;
+        if (message.getSender() != null && message.getSender().getUserProfileImage() != null) {
+            senderThumbnailUrl = message.getSender().getUserProfileImage().getThumbnailImageUrl();
+        }
+        return ChatMessageResponseDto.from(message, senderThumbnailUrl);
+    }
+
     private ChatRoomResponseDto buildChatRoomResponse(ChatRoom chatRoom, Long currentUserId) {
         try {
             ChatRoomResponseDto dto = ChatRoomResponseDto.from(chatRoom, currentUserId);
@@ -684,7 +772,6 @@ public class ChatServiceImpl implements ChatService {
                             .build();
                 } catch (Exception e) {
                     log.error("기본 그룹 이미지 설정 실패 - 채팅방 ID: {}, 에러: {}", chatRoom.getId(), e.getMessage(), e);
-                    // 기본 이미지 설정 실패 시 원본 DTO 반환
                     return dto;
                 }
             }

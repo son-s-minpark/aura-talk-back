@@ -4,10 +4,7 @@ import com.sonsminpark.auratalkback.domain.chat.dto.request.ChatInviteRequestDto
 import com.sonsminpark.auratalkback.domain.chat.dto.request.ChatMessageRequestDto;
 import com.sonsminpark.auratalkback.domain.chat.dto.request.ChatRoomCreateRequestDto;
 import com.sonsminpark.auratalkback.domain.chat.dto.request.ChatRoomUpdateRequestDto;
-import com.sonsminpark.auratalkback.domain.chat.dto.response.ChatInviteResponseDto;
-import com.sonsminpark.auratalkback.domain.chat.dto.response.ChatMessageResponseDto;
-import com.sonsminpark.auratalkback.domain.chat.dto.response.ChatRoomResponseDto;
-import com.sonsminpark.auratalkback.domain.chat.dto.response.ChatUserResponseDto;
+import com.sonsminpark.auratalkback.domain.chat.dto.response.*;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
@@ -44,9 +41,14 @@ public interface ChatService {
     // 메시지
     ChatMessageResponseDto sendMessage(Long chatRoomId, ChatMessageRequestDto requestDto, Long userId);
 
-    Page<ChatMessageResponseDto> getMessages(Long chatRoomId, Long userId, Pageable pageable);
+    ChatMessagesResponseDto getMessagesBefore(Long chatRoomId, Long userId, Long beforeMessageId, int limit);
+
+    ChatMessagesResponseDto getMessagesAfter(Long chatRoomId, Long userId, Long afterMessageId, int limit);
 
     void deleteMessage(Long messageId, Long userId);
+
+    @Deprecated
+    Page<ChatMessageResponseDto> getMessages(Long chatRoomId, Long userId, Pageable pageable);
 
     // 초대 링크
     ChatInviteResponseDto createInviteLink(Long chatRoomId, Long userId);

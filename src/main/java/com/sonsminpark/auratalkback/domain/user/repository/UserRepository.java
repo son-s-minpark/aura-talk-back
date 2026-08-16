@@ -1,6 +1,8 @@
 package com.sonsminpark.auratalkback.domain.user.repository;
 
 import com.sonsminpark.auratalkback.domain.user.entity.User;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -31,6 +33,12 @@ public interface UserRepository extends JpaRepository<User, Long> {
             "LEFT JOIN FETCH u.userProfileImage " +
             "WHERE ui.interestName = :interestName AND u.isDeleted = false")
     List<User> findActiveUsersByInterest(@Param("interestName") String interestName);
+
+    @Query("SELECT DISTINCT u FROM User u " +
+            "LEFT JOIN FETCH u.userInterests ui " +
+            "LEFT JOIN FETCH u.userProfileImage " +
+            "WHERE ui.interestName = :interestName AND u.isDeleted = false")
+    Page<User> findActiveUsersByInterestWithPaging(@Param("interestName") String interestName, Pageable pageable);
 
     @Query("SELECT u FROM User u LEFT JOIN FETCH u.userProfileImage WHERE u.id = :userId")
     Optional<User> findByIdWithProfileImage(@Param("userId") Long userId);

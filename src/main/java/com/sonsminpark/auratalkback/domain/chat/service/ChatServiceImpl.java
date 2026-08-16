@@ -406,7 +406,6 @@ public class ChatServiceImpl implements ChatService {
                 sender.getUserProfileImage().getThumbnailImageUrl() : null;
 
         ChatMessageResponseDto responseDto = ChatMessageResponseDto.from(savedMessage, senderThumbnailUrl);
-        messagingTemplate.convertAndSend("/topic/chatroom/" + chatRoomId, responseDto);
 
         return responseDto;
     }

@@ -14,6 +14,15 @@ public interface ChatRoomUserRepository extends JpaRepository<ChatRoomUser, Long
 
     List<ChatRoomUser> findByChatRoomIdAndUserId(Long chatRoomId, Long userId);
 
+    @Query("SELECT COUNT(cru) > 0 FROM ChatRoomUser cru " +
+            "WHERE cru.chatRoom.id = :chatRoomId AND cru.user.id = :userId")
+    boolean existsByChatRoomIdAndUserId(@Param("chatRoomId") Long chatRoomId, @Param("userId") Long userId);
+
+    @Query("SELECT cru FROM ChatRoomUser cru " +
+            "WHERE cru.chatRoom.id = :chatRoomId AND cru.user.id = :userId " +
+            "ORDER BY cru.id DESC LIMIT 1")
+    Optional<ChatRoomUser> findFirstByChatRoomIdAndUserId(@Param("chatRoomId") Long chatRoomId, @Param("userId") Long userId);
+
     @Query("SELECT cru FROM ChatRoomUser cru WHERE cru.chatRoom.id = :chatRoomId AND cru.user.id = :userId")
     Optional<ChatRoomUser> findUserSettings(@Param("chatRoomId") Long chatRoomId, @Param("userId") Long userId);
 

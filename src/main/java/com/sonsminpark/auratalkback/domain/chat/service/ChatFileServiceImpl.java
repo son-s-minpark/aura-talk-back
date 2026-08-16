@@ -64,9 +64,7 @@ public class ChatFileServiceImpl implements ChatFileService {
             throw ChatAccessDeniedException.of("강퇴된 채팅방에는 파일을 업로드할 수 없습니다.");
         }
 
-        // 중복 데이터 문제 해결
-        List<ChatRoomUser> users = chatRoomUserRepository.findByChatRoomIdAndUserId(chatroomId, userId);
-        if (users.isEmpty()) {
+        if (!chatRoomUserRepository.existsByChatRoomIdAndUserId(chatroomId, userId)) {
             throw ChatAccessDeniedException.of("채팅방에 참여하고 있지 않습니다.");
         }
     }
@@ -172,6 +170,43 @@ public class ChatFileServiceImpl implements ChatFileService {
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
 
         Page<ChatFile> chatFiles = chatFileRepository.findByChatRoomIdWithUploader(chatroomId, pageable);
+
+        return chatFiles.map(chatFile -> {
+            String uploaderThumbnailUrl = chatFile.getUploader().getUserProfileImage() != null ?
+                    chatFile.getUploader().getUserProfileImage().getThumbnailImageUrl() : null;
+            return ChatFileResponseDto.from(chatFile, uploaderThumbnailUrl);
+        });
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<ChatFileResponseDto> getChatRoomFilesByType(Long chatroomId, Long userId, ChatFileType fileType, int page, int size) {
+        validateChatRoomAccess(chatroomId, userId);
+
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        Page<ChatFile> chatFiles;
+
+        switch (fileType) {
+            case IMAGE:
+                chatFiles = chatFileRepository.findImagesByChatRoomIdWithUploader(chatroomId, pageable);
+                break;
+            case VIDEO:
+                chatFiles = chatFileRepository.findVideosByChatRoomIdWithUploader(chatroomId, pageable);
+                break;
+            case AUDIO:
+                chatFiles = chatFileRepository.findAudiosByChatRoomIdWithUploader(chatroomId, pageable);
+                break;
+            case DOCUMENT:
+                chatFiles = chatFileRepository.findDocumentsByChatRoomIdWithUploader(chatroomId, pageable);
+                break;
+            case OTHER:
+                chatFiles = chatFileRepository.findOthersByChatRoomIdWithUploader(chatroomId, pageable);
+                break;
+            case ALL:
+            default:
+                chatFiles = chatFileRepository.findByChatRoomIdWithUploader(chatroomId, pageable);
+                break;
+        }
 
         return chatFiles.map(chatFile -> {
             String uploaderThumbnailUrl = chatFile.getUploader().getUserProfileImage() != null ?

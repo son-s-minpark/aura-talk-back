@@ -2,6 +2,8 @@ package com.sonsminpark.auratalkback.domain.chat.repository;
 
 import com.sonsminpark.auratalkback.domain.chat.entity.ChatRoom;
 import com.sonsminpark.auratalkback.domain.chat.entity.ChatRoomType;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -20,6 +22,13 @@ public interface ChatRoomRepository extends JpaRepository<ChatRoom, Long> {
             "WHERE cru.user.id = :userId " +
             "ORDER BY cr.lastMessageAt DESC")
     List<ChatRoom> findActiveByUserIdWithOwner(@Param("userId") Long userId);
+
+    @Query("SELECT DISTINCT cr FROM ChatRoom cr " +
+            "LEFT JOIN FETCH cr.owner o " +
+            "LEFT JOIN FETCH o.userProfileImage " +
+            "JOIN ChatRoomUser cru ON cr.id = cru.chatRoom.id " +
+            "WHERE cru.user.id = :userId")
+    Page<ChatRoom> findActiveByUserIdWithOwnerPaging(@Param("userId") Long userId, Pageable pageable);
 
     @Query("SELECT cr FROM ChatRoom cr " +
             "JOIN ChatRoomUser cru1 ON cr.id = cru1.chatRoom.id " +

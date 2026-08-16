@@ -36,7 +36,7 @@ public class UserServiceImpl implements UserService {
     private final EmailService emailService;
     private final UserProfileImageService userProfileImageService;
     private final FriendService friendService;
-    private final AuthService authService;  // 추가: Refresh Token 서비스
+    private final AuthService authService;
 
     @Override
     @Transactional
@@ -46,6 +46,11 @@ public class UserServiceImpl implements UserService {
 
         if (!passwordEncoder.matches(loginRequestDto.getPassword(), user.getPassword())) {
             throw InvalidUserCredentialsException.of("이메일 또는 비밀번호가 일치하지 않습니다.");
+        }
+
+        // 이메일 인증 확인
+        if (!user.isEmailVerified()) {
+            throw InvalidUserCredentialsException.of("이메일 인증이 필요합니다. 이메일을 확인해주세요.");
         }
 
         // 로그인 시 ONLINE으로 변경
@@ -110,7 +115,7 @@ public class UserServiceImpl implements UserService {
                     .status(UserStatus.ONLINE)
                     .isDeleted(false)
                     .deletedAt(null)
-                    .emailVerified(true) // TODO: 이메일 인증 활성화 시 해당 줄 제거하기
+                    .emailVerified(false) // 이메일 재인증 필요
                     .userInterests(new ArrayList<>())
                     .randomChatEnabled(false)
                     .createdAt(user.getCreatedAt())
@@ -119,6 +124,10 @@ public class UserServiceImpl implements UserService {
             User savedUser = userRepository.save(user);
 
             ProfileImageResponseDto profileImageDto = userProfileImageService.createDefaultProfileImage(savedUser.getId());
+
+            // 이메일 인증 메일 발송
+            String verificationCode = emailService.generateVerificationToken(savedUser.getEmail());
+            emailService.sendVerificationEmail(savedUser.getEmail(), verificationCode);
 
             TokenResponseDto tokens = authService.createTokenPair(savedUser.getId(), savedUser.getEmail());
 
@@ -135,7 +144,7 @@ public class UserServiceImpl implements UserService {
                     .profileImage(profileImageDto)
                     .build();
 
-            log.info("계정 복구 완료 - ID: {}, 이메일: {}", savedUser.getId(), savedUser.getEmail());
+            log.info("계정 복구 완료 - ID: {}, 이메일: {} (이메일 인증 필요)", savedUser.getId(), savedUser.getEmail());
 
             return SignUpResponseDto.builder()
                     .userId(savedUser.getId())
@@ -155,16 +164,16 @@ public class UserServiceImpl implements UserService {
                 .nickname("임시 닉네임")
                 .status(UserStatus.ONLINE)
                 .isDeleted(false)
-                .emailVerified(true) // TODO: 이메일 인증 활성화 시 해당 줄 제거하기
+                .emailVerified(false) // 이메일 인증 필요
                 .build();
 
         User savedUser = userRepository.save(user);
 
         ProfileImageResponseDto profileImageDto = userProfileImageService.createDefaultProfileImage(savedUser.getId());
 
-        // TODO: 이메일 인증 활성화 시 아래 주석 제거하기
-//        String verificationToken = emailService.generateVerificationToken(savedUser.getEmail());
-//        emailService.sendVerificationEmail(savedUser.getEmail(), verificationToken);
+        // 이메일 인증 메일 발송
+        String verificationCode = emailService.generateVerificationToken(savedUser.getEmail());
+        emailService.sendVerificationEmail(savedUser.getEmail(), verificationCode);
 
         TokenResponseDto tokens = authService.createTokenPair(savedUser.getId(), savedUser.getEmail());
 
@@ -181,7 +190,7 @@ public class UserServiceImpl implements UserService {
                 .profileImage(profileImageDto)
                 .build();
 
-        log.info("새 계정 생성 완료 - ID: {}, 이메일: {}", savedUser.getId(), savedUser.getEmail());
+        log.info("새 계정 생성 완료 - ID: {}, 이메일: {} (이메일 인증 메일 발송됨)", savedUser.getId(), savedUser.getEmail());
 
         return SignUpResponseDto.builder()
                 .userId(savedUser.getId())
@@ -259,8 +268,7 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional
     public boolean verifyEmail(EmailVerificationRequestDto emailVerificationRequestDto) {
-        // TODO: 항상 성공을 반환하므로 이메일 인증 활성화 시 아래 주석 제거하기
-        /*if (!emailService.validateVerificationToken(
+        if (!emailService.validateVerificationToken(
                 emailVerificationRequestDto.getEmail(),
                 emailVerificationRequestDto.getToken())) {
             return false;
@@ -269,16 +277,16 @@ public class UserServiceImpl implements UserService {
         User user = userRepository.findByEmailAndIsDeletedFalse(emailVerificationRequestDto.getEmail())
                 .orElseThrow(() -> UserNotFoundException.of(emailVerificationRequestDto.getEmail(), "존재하지 않는 사용자입니다."));
 
-        user.verifyEmail();*/
+        user.verifyEmail();
 
+        log.info("이메일 인증 완료 - 사용자 ID: {}, 이메일: {}", user.getId(), user.getEmail());
         return true;
     }
 
     @Override
     @Transactional
     public void resendVerificationEmail(String email) {
-        // TODO: 아무 값도 반환하지 않으므로 이메일 인증 활성화 시 아래 주석 제거하기
-        /*User user = userRepository.findByEmailAndIsDeletedFalse(email)
+        User user = userRepository.findByEmailAndIsDeletedFalse(email)
                 .orElseThrow(() -> UserNotFoundException.of(email, "존재하지 않는 사용자입니다."));
 
         // 이미 인증된 경우
@@ -286,9 +294,11 @@ public class UserServiceImpl implements UserService {
             throw InvalidUserInputException.of("이미 인증된 이메일입니다.");
         }
 
-        // 새 인증 토큰 생성 및 전송
-        String verificationToken = emailService.generateVerificationToken(email);
-        emailService.sendVerificationEmail(email, verificationToken);*/
+        // 새 인증 번호 생성 및 전송
+        String verificationCode = emailService.generateVerificationToken(email);
+        emailService.sendVerificationEmail(email, verificationCode);
+
+        log.info("인증 이메일 재전송 완료 - 이메일: {}", email);
     }
 
     @Override

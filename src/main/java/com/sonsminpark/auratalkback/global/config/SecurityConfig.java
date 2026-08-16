@@ -29,7 +29,6 @@ public class SecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
                 .csrf(AbstractHttpConfigurer::disable)
-                .cors(AbstractHttpConfigurer::disable)
                 .sessionManagement(sessionManagement ->
                         sessionManagement.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(authorizeRequests ->
@@ -40,7 +39,7 @@ public class SecurityConfig {
                                 // 인증 없이 접근 가능
                                 .requestMatchers("/api/users/login", "/api/users",
                                         "/api/users/verify-email", "/api/users/resend-verification",
-                                        "/api/health").permitAll()
+                                        "/api/health", "/api/auth/refresh").permitAll()
                                 // 관심사 API 접근 설정
                                 .requestMatchers("/api/interests", "/api/interests/category/**").permitAll()
                                 .requestMatchers("/api/interests/*/users").authenticated()

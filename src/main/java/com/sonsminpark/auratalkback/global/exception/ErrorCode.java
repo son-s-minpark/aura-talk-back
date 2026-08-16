@@ -6,15 +6,15 @@ import org.springframework.http.HttpStatus;
 /**
  * 코드 규칙
  * - 4xx: 클라이언트 에러
- *   - 400~409: 일반적인 요청 에러
- *   - 410~419: 인증/인가 관련 에러
- *   - 420~429: 사용자 관련 에러
- *   - 430~439: 친구 관련 에러
- *   - 440~449: 채팅 관련 에러
- *   - 450~459: 초대 관련 에러
+ * - 400~409: 일반적인 요청 에러
+ * - 410~419: 인증/인가 관련 에러
+ * - 420~429: 사용자 관련 에러
+ * - 430~439: 친구 관련 에러
+ * - 440~449: 채팅 관련 에러
+ * - 450~459: 초대 관련 에러
  * - 5xx: 서버 에러
- *   - 500~509: 일반적인 서버 에러
- *   - 510~519: 데이터베이스 관련 에러
+ * - 500~509: 일반적인 서버 에러
+ * - 510~519: 데이터베이스 관련 에러
  */
 @Getter
 public enum ErrorCode {
@@ -31,6 +31,10 @@ public enum ErrorCode {
     INVALID_AUTH_TOKEN(HttpStatus.UNAUTHORIZED, 411, "잘못된 인증 토큰입니다."),
     EXPIRED_AUTH_TOKEN(HttpStatus.UNAUTHORIZED, 412, "만료된 인증 토큰입니다."),
     ACCESS_DENIED(HttpStatus.FORBIDDEN, 413, "접근이 거부되었습니다."),
+
+    EXPIRED_REFRESH_TOKEN(HttpStatus.UNAUTHORIZED, 415, "만료된 Refresh Token입니다."),
+    INVALID_REFRESH_TOKEN(HttpStatus.UNAUTHORIZED, 416, "유효하지 않은 Refresh Token입니다."),
+    REFRESH_TOKEN_REUSE_DETECTED(HttpStatus.UNAUTHORIZED, 417, "토큰 재사용이 감지되었습니다. 보안을 위해 모든 세션이 종료됩니다."),
 
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, 420, "사용자를 찾을 수 없습니다."),
     DUPLICATE_EMAIL(HttpStatus.CONFLICT, 421, "이미 사용 중인 이메일입니다."),

@@ -11,6 +11,7 @@ import lombok.NoArgsConstructor;
 @Builder
 public class SignUpResponseDto {
     private Long userId;
-    private String token;
+    private String accessToken;
+    private String refreshToken;
     private MyProfileResponseDto user;
 }
